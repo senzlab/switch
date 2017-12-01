@@ -1,4 +1,5 @@
 package main
+
 import (
     "fmt"
     "net"
@@ -22,16 +23,12 @@ type Senz struct {
     digsig   string
 }
 
-const (
-    CONN_PORT = "7070"
-    CONN_TYPE = "tcp"
-)
-
+// keep connected senzies
 var senzies = map[string]*Senzie{}
 
 func main() {
     // listen for incoming conns
-    l, err := net.Listen(CONN_TYPE, ":" + CONN_PORT)
+    l, err := net.Listen("tcp", ":" + config.switchPort)
     if err != nil {
         fmt.Println("Error listening:", err.Error())
         os.Exit(1)
@@ -39,7 +36,7 @@ func main() {
 
     // close listern on app closes
     defer l.Close()
-    fmt.Println("Listening on " + CONN_PORT)
+    fmt.Println("Listening on " + config.switchPort)
 
     for {
         // handle new connections 
