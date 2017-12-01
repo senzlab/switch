@@ -43,7 +43,14 @@ func main() {
             os.Exit(1)
         }
 
-        go onConnect(conn) 
+        // new senzie
+        senzie := &Senzie {
+            outgoing: make(chan string),
+            reader: bufio.NewReader(conn),
+            writer: bufio.NewWriter(conn),
+        }
+        go reading(senzie) 
+        go writing(senzie) 
     }
 }
 
@@ -78,6 +85,36 @@ func onConnect(conn net.Conn) {
 
             // start routing to write
             go writing(senzie)
+        } else if(senz == "DATA") {
+            println("DATA -- ")
+            for _, senzie := range senzies {
+                println("SENDING -- ")
+                senzie.outgoing <- senz
+            }
+        }
+    }
+}
+
+func reading(senzie *Senzie)  {
+    // read data 
+    for {
+        senz, err := senzie.reader.ReadString(';')
+        if err != nil {
+            fmt.Println("Error reading: ", err.Error())
+            return
+        }
+
+        // format senz
+        var replacer = strings.NewReplacer(";", "", "\n", "")
+        senz = strings.TrimSpace(replacer.Replace(senz))
+        println(senz)
+
+        if(senz == "SHARE") {
+            println("SARE -- ")
+            // senzie registered
+            // todo set senzie name
+            senzies = append(senzies, senzie)
+            println(len(senzies))
         } else if(senz == "DATA") {
             println("DATA -- ")
             for _, senzie := range senzies {
