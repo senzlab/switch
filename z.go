@@ -82,10 +82,7 @@ func onConnect(conn net.Conn) {
             println("DATA -- ")
             for _, senzie := range senzies {
                 println("SENDING -- ")
-                //senzie.writer.WriteString("hooo")
-                //senzie.writer.Flush()
                 senzie.outgoing <- senz
-                //conn.Write([]byte(senz))
             }
         }
     }
