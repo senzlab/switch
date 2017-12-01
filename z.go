@@ -8,10 +8,18 @@ import (
 )
 
 type Senzie struct {
-    name string
-	outgoing chan string
-	reader   *bufio.Reader
-	writer   *bufio.Writer
+    name        string
+	outgoing    chan string
+	reader      *bufio.Reader
+	writer      *bufio.Writer
+}
+
+type Senz struct {
+    ztype       string
+    sender      string
+    receiver    string
+    attr        map[string]string
+    digsig   string
 }
 
 const (
@@ -19,10 +27,7 @@ const (
     CONN_TYPE = "tcp"
 )
 
-var (
-	senzies []*Senzie
-    sz map[string]*Senzie
-)
+var senzies = map[string]*Senzie{}
 
 func main() {
     // listen for incoming conns
@@ -58,33 +63,38 @@ func main() {
 func listening(senzie *Senzie)  {
     // read data
     for {
-        senz, err := senzie.reader.ReadString(';')
+        senzMsg, err := senzie.reader.ReadString(';')
         if err != nil {
             fmt.Println("Error reading: ", err.Error())
             return
         }
 
-        // format senz
-        var replacer = strings.NewReplacer(";", "", "\n", "")
-        senz = strings.TrimSpace(replacer.Replace(senz))
-        println(senz)
+        // parse senz
+        var senz = parse(senzMsg)
 
-        if(senz == "SHARE") {
+        if(senz.ztype == "SHARE") {
             println("SARE -- ")
 
             // senzie registered
             // todo set senzie name
-            senzie.name = "eranga" 
-            senzies = append(senzies, senzie)
+            senzie.name = senz.sender
+            senzies[senzie.name] = senzie
             println(len(senzies))
-        } else if(senz == "DATA") {
+            println(senz.sender)
+            println(senz.receiver)
+            println(senzies[senzie.name].name)
+        } else if(senz.ztype == "DATA") {
             println("DATA -- ")
-            for _, senzie := range senzies {
-                println("SENDING -- ")
-                senzie.outgoing <- senz
-            }
+            println(senz.sender)
+            println(senz.receiver)
+
+            // forwared senz
+            var senzie = senzies[senz.receiver]
+            senzie.outgoing <- senz.digsig
         }
     }
+
+    // means senzie exists
 }
 
 func reading(senzie *Senzie) {
@@ -97,4 +107,24 @@ func writing(senzie *Senzie)  {
         senzie.writer.WriteString(senz)
         senzie.writer.Flush()
     }
+}
+
+func parse(senzMsg string)*Senz {
+    var replacer = strings.NewReplacer(";", "", "\n", "")
+    var tokens = strings.Split(strings.TrimSpace(replacer.Replace(senzMsg)), " ")
+    var senz = &Senz {}
+
+    for i := 0; i < len(tokens); i++ {
+        if(i == 0) {
+            senz.ztype = tokens[i]
+        } else if(i == len(tokens) - 1) {
+            senz.digsig = tokens[i]
+        } else if(strings.HasPrefix(tokens[i], "@")) {
+            senz.receiver = tokens[i][1:]
+        } else if(strings.HasPrefix(tokens[i], "^")) {
+            senz.sender = tokens[i][1:]
+        }
+    }
+
+    return senz
 }
