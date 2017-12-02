@@ -15,7 +15,7 @@ type Config struct {
 }
 
 var config = Config {
-    switchName: getEnv("SWITCH_NAME", "zswitch"),
+    switchName: getEnv("SWITCH_NAME", "senzswitch"),
     switchPort: getEnv("SWITCH_PORT", "7070"),
     switchMode: getEnv("SWITCH_MODE", "dev"),
     mongoHost: getEnv("MONGO_HOST", "dev.localhost"),

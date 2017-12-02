@@ -89,32 +89,87 @@ func reading(senzie *Senzie) {
             break
         }
 
-        // parse senz
-        var senz = parse(msg)
+        // not handle TAK, TIK, TUK
+        if(msg == "TAK;" || msg == "TIK;" || msg == "TUK;") {
+            continue
+        }
 
+        // parse senz and handle it
+        var senz = parse(msg)
         if(senz.receiver == config.switchName) {
             if(senz.ztype == "SHARE") {
                 // this is shareing pub key(registration)
                 println("SHARE pubKey to switch")
 
-                // TODO save pubkey in db
-
-                // senzie registered
+                // save pubkey in db
                 senzie.name = senz.sender
-                senzies[senzie.name] = senzie
+                pubkey := senz.attr["pubkey"]
+                key := keyStore.get(senzie.name)
 
-                // start ticking
-                go ticking(senzie)
+                if(key.Value == "") {
+                    // not registerd senzie
+                    // save pubkey
+                    // send status
+                    keyStore.put(&Key{senzie.name, pubkey})
+                    senz := "DATA #status REG_DONE #pubkey switchkey" +
+                                " @" + senzie.name +
+                                " ^" + config.switchName +
+                                " digisig"
+                    senzie.outgoing <- senz
+
+                    // senzie registered
+                    senzies[senzie.name] = senzie
+
+                    // start ticking
+                    go ticking(senzie)
+                } else if(key.Value == pubkey) {
+                    // re sharing pubkey
+                    // send status
+                    z := "DATA #status REG_ALR #pubkey switchkey" +
+                                " @" + senzie.name +
+                                " ^" + config.switchName +
+                                " digisig"
+                    senzie.outgoing <- z
+
+                    // senzie registered
+                    senzies[senzie.name] = senzie
+
+                    // start ticking
+                    go ticking(senzie)
+                } else {
+                    // name already obtained
+                    z := "DATA #status REG_FAIL #pubkey switchkey" +
+                                " @" + senzie.name +
+                                " ^" + config.switchName +
+                                " digisig"
+                    senzie.outgoing <- z
+                }
             } else if(senz.ztype == "GET") {
                 // this is requesting pub key of other senzie
+                // fing pubkey and send
+                key := keyStore.get(senz.attr["name"])
+                z := "DATA #pubkey " + key.Value +
+                            " #name " + senz.attr["name"] +
+                            " #uid " + senz.attr["uid"] +
+                            " @" + senzie.name +
+                            " ^" + config.switchName +
+                            " digisig"
+                senzie.outgoing <- z
             }
         } else {
             // senz for another senzie
-            println("SENZ for senzie")
+            println("SENZ for senzie " + senz.msg)
 
-            // forwared senz
-            var senzie = senzies[senz.receiver]
-            senzie.outgoing <- senz.digsig
+            // send ack back to sender
+            z := "DATA #status RECEIVED" +
+                        " #uid " + senz.attr["uid"] +
+                        " @" + senzie.name +
+                        " ^" + config.switchName +
+                        " digisig"
+            senzie.outgoing <- z 
+
+            // forwared senz msg to receiver
+            senzies[senz.receiver].outgoing <- senz.msg
         }
     }
 
@@ -146,6 +201,7 @@ func writing(senzie *Senzie)  {
             break
         case senz := <-senzie.outgoing:
             println("writing -- ")
+            println(senz)
             senzie.writer.WriteString(senz + ";")
             senzie.writer.Flush()
         case tick := <-senzie.ticking:
