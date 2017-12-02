@@ -7,6 +7,7 @@ import (
     "os"
     "strings"
     "time"
+    "gopkg.in/mgo.v2"
 )
 
 type Senzie struct {
@@ -28,6 +29,7 @@ type Senz struct {
 
 // keep connected senzies
 var senzies = map[string]*Senzie{}
+var keyStore = &KeyStore{}
 
 func main() {
     // listen for incoming conns
@@ -39,7 +41,23 @@ func main() {
 
     // close listern on app closes
     defer l.Close()
+
     fmt.Println("Listening on " + config.switchPort)
+
+    // db setup
+    session, err:= mgo.Dial(config.mongoHost)
+    if err != nil {
+        fmt.Println("Error connecting mongo: ", err.Error())
+        os.Exit(1)
+    }
+
+    // close session on app closes
+    defer session.Close()
+
+    session.SetMode(mgo.Monotonic, true)
+    keyStore.session = session
+    keyStore.put(Key{name: "eranga", value: "we2323"})
+    println(keyStore.get("eranga").name)
 
     for {
         // handle new connections 
@@ -68,7 +86,7 @@ func listening(senzie *Senzie)  {
         senzMsg, err := senzie.reader.ReadString(';')
         if err != nil {
             fmt.Println("Error reading: ", err.Error())
-            return
+            break
         }
 
         // parse senz
@@ -80,6 +98,9 @@ func listening(senzie *Senzie)  {
             // senzie registered
             senzie.name = senz.sender
             senzies[senzie.name] = senzie
+
+            // start pinging
+            go pinging(senzie)
         } else if(senz.ztype == "DATA") {
             println("DATA -- ")
 
@@ -104,7 +125,7 @@ func pinging(senzie *Senzie) {
         select {
         case <- senzie.quit:
             println("quiting -- ")
-            return
+            break
         default:
             <-time.After(120 * time.Second)
             senzie.pinging <- "TIK"
@@ -118,7 +139,7 @@ func writing(senzie *Senzie)  {
         select {
         case <- senzie.quit:
             println("quiting -- ")
-            return
+            break
         case senz := <-senzie.outgoing:
             println("writing -- ")
             senzie.writer.WriteString(senz)

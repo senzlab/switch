@@ -10,6 +10,8 @@ type Config struct {
     switchMode  string
     mongoHost   string
     mongoPort   string
+    mongoDb     string
+    mongoColl   string
 }
 
 var config = Config {
@@ -18,6 +20,8 @@ var config = Config {
     switchMode: getEnv("SWITCH_MODE", "dev"),
     mongoHost: getEnv("MONGO_HOST", "dev.localhost"),
     mongoPort: getEnv("MONGO_PORT", "27017"),
+    mongoDb: getEnv("MONGO_DB", "senz"),
+    mongoColl: getEnv("MONGO_COLL", "senzies"),
 }
 
 func getEnv(key, fallback string) string {
