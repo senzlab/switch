@@ -142,6 +142,11 @@ func reading(senzie *Senzie) {
                         senzie.outgoing <- z
 
                         // senzie registered
+                        // take existing senzie and stop it
+                        // add new senzie
+                        if rSenzie, ok := senzies[senzie.name]; ok {
+                            rSenzie.quit <- true
+                        }
                         senzies[senzie.name] = senzie
 
                         // start ticking
