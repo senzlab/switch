@@ -7,16 +7,15 @@ import (
 )
 
 type Key struct {
-	ID      bson.ObjectId `bson:"_id,omitempty"`
-    name    string
-    value   string
+    Name string
+    Value string
 }
 
 type KeyStore struct {
     session *mgo.Session
 }
 
-func (ks *KeyStore) put(key Key) {
+func (ks *KeyStore) put(key *Key) {
     var coll = ks.session.Copy().DB(config.mongoDb).C(config.mongoColl)
     err := coll.Insert(key)
     if err != nil {
