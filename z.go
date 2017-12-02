@@ -6,11 +6,14 @@ import (
     "bufio"
     "os"
     "strings"
+    "time"
 )
 
 type Senzie struct {
     name        string
 	outgoing    chan string
+    pinging     chan string
+    quit        chan bool
 	reader      *bufio.Reader
 	writer      *bufio.Writer
 }
@@ -49,6 +52,8 @@ func main() {
         // new senzie
         senzie := &Senzie {
             outgoing: make(chan string),
+            pinging: make(chan string),
+            quit: make(chan bool),
             reader: bufio.NewReader(conn),
             writer: bufio.NewWriter(conn),
         }
@@ -70,20 +75,13 @@ func listening(senzie *Senzie)  {
         var senz = parse(senzMsg)
 
         if(senz.ztype == "SHARE") {
-            println("SARE -- ")
+            println("SHARE -- ")
 
             // senzie registered
-            // todo set senzie name
             senzie.name = senz.sender
             senzies[senzie.name] = senzie
-            println(len(senzies))
-            println(senz.sender)
-            println(senz.receiver)
-            println(senzies[senzie.name].name)
         } else if(senz.ztype == "DATA") {
             println("DATA -- ")
-            println(senz.sender)
-            println(senz.receiver)
 
             // forwared senz
             var senzie = senzies[senz.receiver]
@@ -91,18 +89,43 @@ func listening(senzie *Senzie)  {
         }
     }
 
-    // means senzie exists
+    // senzie exists
+    // quit all routeins
+    senzie.quit <- true
 }
 
 func reading(senzie *Senzie) {
     // read senz
 }
 
+func pinging(senzie *Senzie) {
+    // ping
+    for {
+        select {
+        case <- senzie.quit:
+            println("quiting -- ")
+            return
+        default:
+            <-time.After(120 * time.Second)
+            senzie.pinging <- "TIK"
+        }
+    }
+}
+
 func writing(senzie *Senzie)  {
-    for senz := range senzie.outgoing {
-        println("writing -- ")
-        senzie.writer.WriteString(senz)
-        senzie.writer.Flush()
+    // write
+    for {
+        select {
+        case <- senzie.quit:
+            println("quiting -- ")
+            return
+        case senz := <-senzie.outgoing:
+            println("writing -- ")
+            senzie.writer.WriteString(senz)
+            senzie.writer.Flush()
+        case <- senzie.pinging:
+            println("pinging -- ")
+        }
     }
 }
 
