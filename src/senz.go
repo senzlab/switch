@@ -12,9 +12,9 @@ import (
 
 type Senzie struct {
     name        string
-	outgoing    chan string
+	out         chan string
     quit        chan bool
-    ticking     *time.Ticker
+    tik         *time.Ticker
     conn        net.Conn
 }
 
@@ -67,9 +67,9 @@ func main() {
 
         // new senzie
         senzie := &Senzie {
-            outgoing: make(chan string),
+            out: make(chan string),
             quit: make(chan bool),
-            ticking: time.NewTicker(60 * time.Second),
+            tik: time.NewTicker(60 * time.Second),
             conn: conn,
         }
 
@@ -121,7 +121,7 @@ func reading(senzie *Senzie) {
                                 " @" + senzie.name +
                                 " ^" + config.switchName +
                                 " digisig"
-                    senzie.outgoing <- z
+                    senzie.out <- z
 
                     // senzie registered
                     // take existing senzie and stop it
@@ -137,7 +137,7 @@ func reading(senzie *Senzie) {
                                 " @" + senzie.name +
                                 " ^" + config.switchName +
                                 " digisig"
-                    senzie.outgoing <- z
+                    senzie.out <- z
 
                     // senzie registered
                     // take existing senzie and stop it
@@ -152,7 +152,7 @@ func reading(senzie *Senzie) {
                                 " @" + senzie.name +
                                 " ^" + config.switchName +
                                 " digisig"
-                    senzie.outgoing <- z
+                    senzie.out <- z
                 }
             } else if(senz.ztype == "GET") {
                 // this is requesting pub key of other senzie
@@ -164,7 +164,7 @@ func reading(senzie *Senzie) {
                             " @" + senzie.name +
                             " ^" + config.switchName +
                             " digisig"
-                senzie.outgoing <- z
+                senzie.out <- z
             }
         } else {
             // senz for another senzie
@@ -176,10 +176,10 @@ func reading(senzie *Senzie) {
                         " @" + senzie.name +
                         " ^" + config.switchName +
                         " digisig"
-            senzie.outgoing <- z 
+            senzie.out <- z
 
             // forwared senz msg to receiver
-            senzies[senz.receiver].outgoing <- senz.msg
+            senzies[senz.receiver].out <- senz.msg
         }
     }
 }
@@ -193,14 +193,14 @@ func writing(senzie *Senzie)  {
         select {
         case <- senzie.quit:
             println("quiting/write/tick -- ")
-            senzie.ticking.Stop()
+            senzie.tik.Stop()
             break WRITER
-        case senz := <-senzie.outgoing:
+        case senz := <-senzie.out:
             println("writing -- ")
             println(senz)
             writer.WriteString(senz + ";")
             writer.Flush()
-        case <-senzie.ticking.C:
+        case <-senzie.tik.C:
             println("ticking -- ")
             writer.WriteString("TIK;")
             writer.Flush()
