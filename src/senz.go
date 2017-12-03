@@ -89,6 +89,11 @@ func reading(senzie *Senzie) {
         if err != nil {
             fmt.Println("Error reading: ", err.Error())
 
+            // take existing senzie and stop it
+            if (senzie.name != "") {
+                delete(senzies, senzie.name)
+            }
+
             // senzie exists
             // quit all routeins
             senzie.quit <- true
@@ -102,56 +107,42 @@ func reading(senzie *Senzie) {
         }
 
         // parse senz and handle it
-        var senz = parse(msg)
+        senz := parse(msg)
         if(senz.receiver == config.switchName) {
             if(senz.ztype == "SHARE") {
                 // this is shareing pub key(registration)
-                println("SHARE pubKey to switch")
-
                 // save pubkey in db
                 senzie.name = senz.sender
                 senzie.id = senz.attr["uid"]
                 pubkey := senz.attr["pubkey"]
                 key := keyStore.get(senzie.name)
 
+                println("SHARE pubKey to switch " + senzie.name + " " + senzie.id)
+
                 if(key.Value == "") {
                     // not registerd senzie
                     // save pubkey
-                    // send status
+                    // add senzie
                     keyStore.put(&Key{senzie.name, pubkey})
+                    senzies[senzie.name] = senzie
+
+                    // send status
                     z := "DATA #status REG_DONE #pubkey switchkey" +
                                 " @" + senzie.name +
                                 " ^" + config.switchName +
                                 " digisig"
                     senzie.out <- z
-
-                    // senzie registered
-                    // take existing senzie and stop it
-                    // add new senzie
-                    if rSenzie, ok := senzies[senzie.name]; ok {
-                        println("removing old senzie " + senzie.name + " id: " + rSenzie.id)
-                        rSenzie.conn.Close()
-                        delete(senzies, senzie.name)
-                    }
-                    senzies[senzie.name] = senzie
                 } else if(key.Value == pubkey) {
-                    // re sharing pubkey
+                    // registerd senzie 
+                    // add senzie
+                    senzies[senzie.name] = senzie
+
                     // send status
                     z := "DATA #status REG_ALR #pubkey switchkey" +
                                 " @" + senzie.name +
                                 " ^" + config.switchName +
                                 " digisig"
                     senzie.out <- z
-
-                    // senzie registered
-                    // take existing senzie and stop it
-                    // add new senzie
-                    if rSenzie, ok := senzies[senzie.name]; ok {
-                        println("removing old senzie " + senzie.name + " id: " + rSenzie.id)
-                        rSenzie.conn.Close()
-                        delete(senzies, senzie.name)
-                    }
-                    senzies[senzie.name] = senzie
                 } else {
                     // name already obtained
                     z := "DATA #status REG_FAIL #pubkey switchkey" +
@@ -215,9 +206,9 @@ func writing(senzie *Senzie)  {
 }
 
 func parse(msg string)*Senz {
-    var replacer = strings.NewReplacer(";", "", "\n", "")
-    var tokens = strings.Split(strings.TrimSpace(replacer.Replace(msg)), " ")
-    var senz = &Senz {}
+    replacer := strings.NewReplacer(";", "", "\n", "")
+    tokens := strings.Split(strings.TrimSpace(replacer.Replace(msg)), " ")
+    senz := &Senz {}
     senz.msg = msg
     senz.attr = map[string]string{}
 
