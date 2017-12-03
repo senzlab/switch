@@ -15,8 +15,7 @@ type Senzie struct {
 	outgoing    chan string
     ticking     chan string
     quit        chan bool
-	reader      *bufio.Reader
-	writer      *bufio.Writer
+    conn        net.Conn
 }
 
 type Senz struct {
@@ -71,8 +70,7 @@ func main() {
             outgoing: make(chan string),
             ticking : make(chan string),
             quit: make(chan bool),
-            reader: bufio.NewReader(conn),
-            writer: bufio.NewWriter(conn),
+            conn: conn,
         }
 
         go reading(senzie)
@@ -81,129 +79,125 @@ func main() {
 }
 
 func reading(senzie *Senzie) {
+    reader := bufio.NewReader(senzie.conn)
+
     // read senz
-    Reader:
+    READER:
     for {
-        select {
-        case <- senzie.quit:
-            println("quiting/read -- ")
-            break Reader
-        default:
-            msg, err := senzie.reader.ReadString(';')
-            if err != nil {
-                fmt.Println("Error reading: ", err.Error())
+        msg, err := reader.ReadString(';')
+        if err != nil {
+            fmt.Println("Error reading: ", err.Error())
 
-                // senzie exists
-                // quit all routeins
-                senzie.quit <- true
+            // senzie exists
+            // quit all routeins
+            senzie.quit <- true
 
-                break Reader
-            }
+            break READER
+        }
 
-            // not handle TAK, TIK, TUK
-            if(msg == "TAK;" || msg == "TIK;" || msg == "TUK;") {
-                continue Reader
-            }
+        // not handle TAK, TIK, TUK
+        if(msg == "TAK;" || msg == "TIK;" || msg == "TUK;") {
+            continue READER
+        }
 
-            // parse senz and handle it
-            var senz = parse(msg)
-            if(senz.receiver == config.switchName) {
-                if(senz.ztype == "SHARE") {
-                    // this is shareing pub key(registration)
-                    println("SHARE pubKey to switch")
+        // parse senz and handle it
+        var senz = parse(msg)
+        if(senz.receiver == config.switchName) {
+            if(senz.ztype == "SHARE") {
+                // this is shareing pub key(registration)
+                println("SHARE pubKey to switch")
 
-                    // save pubkey in db
-                    senzie.name = senz.sender
-                    pubkey := senz.attr["pubkey"]
-                    key := keyStore.get(senzie.name)
+                // save pubkey in db
+                senzie.name = senz.sender
+                pubkey := senz.attr["pubkey"]
+                key := keyStore.get(senzie.name)
 
-                    if(key.Value == "") {
-                        // not registerd senzie
-                        // save pubkey
-                        // send status
-                        keyStore.put(&Key{senzie.name, pubkey})
-                        z := "DATA #status REG_DONE #pubkey switchkey" +
-                                    " @" + senzie.name +
-                                    " ^" + config.switchName +
-                                    " digisig"
-                        senzie.outgoing <- z
+                if(key.Value == "") {
+                    // not registerd senzie
+                    // save pubkey
+                    // send status
+                    keyStore.put(&Key{senzie.name, pubkey})
+                    z := "DATA #status REG_DONE #pubkey switchkey" +
+                                " @" + senzie.name +
+                                " ^" + config.switchName +
+                                " digisig"
+                    senzie.outgoing <- z
 
-                        // senzie registered
-                        // take existing senzie and stop it
-                        // add new senzie
-                        if rSenzie, ok := senzies[senzie.name]; ok {
-                            rSenzie.quit <- true
-                        }
-                        senzies[senzie.name] = senzie
-
-                        // start ticking
-                        go ticking(senzie)
-                    } else if(key.Value == pubkey) {
-                        // re sharing pubkey
-                        // send status
-                        z := "DATA #status REG_ALR #pubkey switchkey" +
-                                    " @" + senzie.name +
-                                    " ^" + config.switchName +
-                                    " digisig"
-                        senzie.outgoing <- z
-
-                        // senzie registered
-                        // take existing senzie and stop it
-                        // add new senzie
-                        if rSenzie, ok := senzies[senzie.name]; ok {
-                            rSenzie.quit <- true
-                        }
-                        senzies[senzie.name] = senzie
-
-                        // start ticking
-                        go ticking(senzie)
-                    } else {
-                        // name already obtained
-                        z := "DATA #status REG_FAIL #pubkey switchkey" +
-                                    " @" + senzie.name +
-                                    " ^" + config.switchName +
-                                    " digisig"
-                        senzie.outgoing <- z
+                    // senzie registered
+                    // take existing senzie and stop it
+                    // add new senzie
+                    if rSenzie, ok := senzies[senzie.name]; ok {
+                        rSenzie.conn.Close()
                     }
-                } else if(senz.ztype == "GET") {
-                    // this is requesting pub key of other senzie
-                    // fing pubkey and send
-                    key := keyStore.get(senz.attr["name"])
-                    z := "DATA #pubkey " + key.Value +
-                                " #name " + senz.attr["name"] +
-                                " #uid " + senz.attr["uid"] +
+                    senzies[senzie.name] = senzie
+
+                    // start ticking
+                    go ticking(senzie)
+                } else if(key.Value == pubkey) {
+                    // re sharing pubkey
+                    // send status
+                    z := "DATA #status REG_ALR #pubkey switchkey" +
+                                " @" + senzie.name +
+                                " ^" + config.switchName +
+                                " digisig"
+                    senzie.outgoing <- z
+
+                    // senzie registered
+                    // take existing senzie and stop it
+                    // add new senzie
+                    if rSenzie, ok := senzies[senzie.name]; ok {
+                        rSenzie.conn.Close()
+                    }
+                    senzies[senzie.name] = senzie
+
+                    // start ticking
+                    go ticking(senzie)
+                } else {
+                    // name already obtained
+                    z := "DATA #status REG_FAIL #pubkey switchkey" +
                                 " @" + senzie.name +
                                 " ^" + config.switchName +
                                 " digisig"
                     senzie.outgoing <- z
                 }
-            } else {
-                // senz for another senzie
-                println("SENZ for senzie " + senz.msg)
-
-                // send ack back to sender
-                z := "DATA #status RECEIVED" +
+            } else if(senz.ztype == "GET") {
+                // this is requesting pub key of other senzie
+                // fing pubkey and send
+                key := keyStore.get(senz.attr["name"])
+                z := "DATA #pubkey " + key.Value +
+                            " #name " + senz.attr["name"] +
                             " #uid " + senz.attr["uid"] +
                             " @" + senzie.name +
                             " ^" + config.switchName +
                             " digisig"
-                senzie.outgoing <- z 
-
-                // forwared senz msg to receiver
-                senzies[senz.receiver].outgoing <- senz.msg
+                senzie.outgoing <- z
             }
+        } else {
+            // senz for another senzie
+            println("SENZ for senzie " + senz.msg)
+
+            // send ack back to sender
+            z := "DATA #status RECEIVED" +
+                        " #uid " + senz.attr["uid"] +
+                        " @" + senzie.name +
+                        " ^" + config.switchName +
+                        " digisig"
+            senzie.outgoing <- z 
+
+            // forwared senz msg to receiver
+            senzies[senz.receiver].outgoing <- senz.msg
         }
     }
 }
 
 func ticking(senzie *Senzie) {
     // ping
-    Ticker:
+    TICKER:
     for {
         select {
         case <- senzie.quit:
             println("quiting/tick -- ")
-            break Ticker
+            break TICKER
         default:
             <-time.After(120 * time.Second)
             senzie.ticking <- "TIK"
@@ -212,22 +206,24 @@ func ticking(senzie *Senzie) {
 }
 
 func writing(senzie *Senzie)  {
+    writer := bufio.NewWriter(senzie.conn)
+
     // write
-    Writer:
+    WRITER:
     for {
         select {
         case <- senzie.quit:
             println("quiting/write -- ")
-            break Writer
+            break WRITER
         case senz := <-senzie.outgoing:
             println("writing -- ")
             println(senz)
-            senzie.writer.WriteString(senz + ";")
-            senzie.writer.Flush()
+            writer.WriteString(senz + ";")
+            writer.Flush()
         case tick := <-senzie.ticking:
             println("ticking -- ")
-            senzie.writer.WriteString(tick + ";")
-            senzie.writer.Flush()
+            writer.WriteString(tick + ";")
+            writer.Flush()
         }
     }
 }
