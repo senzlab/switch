@@ -82,21 +82,27 @@ func main() {
 
 func reading(senzie *Senzie) {
     // read senz
+    Reader:
     for {
         select {
         case <- senzie.quit:
-            println("quiting -- ")
-            break
+            println("quiting/read -- ")
+            break Reader
         default:
             msg, err := senzie.reader.ReadString(';')
             if err != nil {
                 fmt.Println("Error reading: ", err.Error())
-                break
+
+                // senzie exists
+                // quit all routeins
+                senzie.quit <- true
+
+                break Reader
             }
 
             // not handle TAK, TIK, TUK
             if(msg == "TAK;" || msg == "TIK;" || msg == "TUK;") {
-                continue
+                continue Reader
             }
 
             // parse senz and handle it
@@ -188,19 +194,16 @@ func reading(senzie *Senzie) {
             }
         }
     }
-
-    // senzie exists
-    // quit all routeins
-    senzie.quit <- true
 }
 
 func ticking(senzie *Senzie) {
     // ping
+    Ticker:
     for {
         select {
         case <- senzie.quit:
-            println("quiting -- ")
-            break
+            println("quiting/tick -- ")
+            break Ticker
         default:
             <-time.After(120 * time.Second)
             senzie.ticking <- "TIK"
@@ -210,11 +213,12 @@ func ticking(senzie *Senzie) {
 
 func writing(senzie *Senzie)  {
     // write
+    Writer:
     for {
         select {
         case <- senzie.quit:
-            println("quiting -- ")
-            break
+            println("quiting/write -- ")
+            break Writer
         case senz := <-senzie.outgoing:
             println("writing -- ")
             println(senz)
