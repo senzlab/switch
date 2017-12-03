@@ -13,8 +13,8 @@ import (
 type Senzie struct {
     name        string
 	outgoing    chan string
-    ticking     chan string
     quit        chan bool
+    ticking     *time.Ticker
     conn        net.Conn
 }
 
@@ -68,8 +68,8 @@ func main() {
         // new senzie
         senzie := &Senzie {
             outgoing: make(chan string),
-            ticking : make(chan string),
             quit: make(chan bool),
+            ticking: time.NewTicker(60 * time.Second),
             conn: conn,
         }
 
@@ -130,9 +130,6 @@ func reading(senzie *Senzie) {
                         rSenzie.conn.Close()
                     }
                     senzies[senzie.name] = senzie
-
-                    // start ticking
-                    go ticking(senzie)
                 } else if(key.Value == pubkey) {
                     // re sharing pubkey
                     // send status
@@ -149,9 +146,6 @@ func reading(senzie *Senzie) {
                         rSenzie.conn.Close()
                     }
                     senzies[senzie.name] = senzie
-
-                    // start ticking
-                    go ticking(senzie)
                 } else {
                     // name already obtained
                     z := "DATA #status REG_FAIL #pubkey switchkey" +
@@ -190,21 +184,6 @@ func reading(senzie *Senzie) {
     }
 }
 
-func ticking(senzie *Senzie) {
-    // ping
-    TICKER:
-    for {
-        select {
-        case <- senzie.quit:
-            println("quiting/tick -- ")
-            break TICKER
-        default:
-            <-time.After(120 * time.Second)
-            senzie.ticking <- "TIK"
-        }
-    }
-}
-
 func writing(senzie *Senzie)  {
     writer := bufio.NewWriter(senzie.conn)
 
@@ -213,16 +192,17 @@ func writing(senzie *Senzie)  {
     for {
         select {
         case <- senzie.quit:
-            println("quiting/write -- ")
+            println("quiting/write/tick -- ")
+            senzie.ticking.Stop()
             break WRITER
         case senz := <-senzie.outgoing:
             println("writing -- ")
             println(senz)
             writer.WriteString(senz + ";")
             writer.Flush()
-        case tick := <-senzie.ticking:
+        case <-senzie.ticking.C:
             println("ticking -- ")
-            writer.WriteString(tick + ";")
+            writer.WriteString("TIK;")
             writer.Flush()
         }
     }
