@@ -12,6 +12,7 @@ import (
 
 type Senzie struct {
     name        string
+    id          string
 	out         chan string
     quit        chan bool
     tik         *time.Ticker
@@ -109,6 +110,7 @@ func reading(senzie *Senzie) {
 
                 // save pubkey in db
                 senzie.name = senz.sender
+                senzie.id = senz.attr["uid"]
                 pubkey := senz.attr["pubkey"]
                 key := keyStore.get(senzie.name)
 
@@ -127,7 +129,7 @@ func reading(senzie *Senzie) {
                     // take existing senzie and stop it
                     // add new senzie
                     if rSenzie, ok := senzies[senzie.name]; ok {
-                        println("removing old senzie " + senzie.name)
+                        println("removing old senzie " + senzie.name + " id: " + rSenzie.id)
                         rSenzie.conn.Close()
                         delete(senzies, senzie.name)
                     }
@@ -145,7 +147,7 @@ func reading(senzie *Senzie) {
                     // take existing senzie and stop it
                     // add new senzie
                     if rSenzie, ok := senzies[senzie.name]; ok {
-                        println("removing old senzie " + senzie.name)
+                        println("removing old senzie " + senzie.name + " id: " + rSenzie.id)
                         rSenzie.conn.Close()
                         delete(senzies, senzie.name)
                     }
@@ -196,16 +198,16 @@ func writing(senzie *Senzie)  {
     for {
         select {
         case <- senzie.quit:
-            println("quiting/write/tick -- ")
+            println("quiting/write/tick -- " + senzie.id)
             senzie.tik.Stop()
             break WRITER
         case senz := <-senzie.out:
-            println("writing -- ")
+            println("writing -- " + senzie.id)
             println(senz)
             writer.WriteString(senz + ";")
             writer.Flush()
         case <-senzie.tik.C:
-            println("ticking -- ")
+            println("ticking -- " + senzie.id)
             writer.WriteString("TIK;")
             writer.Flush()
         }
