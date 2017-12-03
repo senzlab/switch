@@ -127,7 +127,9 @@ func reading(senzie *Senzie) {
                     // take existing senzie and stop it
                     // add new senzie
                     if rSenzie, ok := senzies[senzie.name]; ok {
+                        println("removing old senzie " + senzie.name)
                         rSenzie.conn.Close()
+                        delete(senzies, senzie.name)
                     }
                     senzies[senzie.name] = senzie
                 } else if(key.Value == pubkey) {
@@ -143,7 +145,9 @@ func reading(senzie *Senzie) {
                     // take existing senzie and stop it
                     // add new senzie
                     if rSenzie, ok := senzies[senzie.name]; ok {
+                        println("removing old senzie " + senzie.name)
                         rSenzie.conn.Close()
+                        delete(senzies, senzie.name)
                     }
                     senzies[senzie.name] = senzie
                 } else {
