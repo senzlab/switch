@@ -176,7 +176,11 @@ func reading(senzie *Senzie) {
             senzie.out <- z
 
             // forwared senz msg to receiver
-            senzies[senz.receiver].out <- senz.msg
+            if senzies[senz.receiver] != nil {
+                senzies[senz.receiver].out <- senz.msg
+            } else {
+                println("no senzie " + senz.receiver)
+            }
         }
     }
 }
