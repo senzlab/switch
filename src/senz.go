@@ -89,13 +89,7 @@ func reading(senzie *Senzie) {
         if err != nil {
             fmt.Println("Error reading: ", err.Error())
 
-            // take existing senzie and stop it
-            if (senzie.name != "") {
-                delete(senzies, senzie.name)
-            }
-
-            // senzie exists
-            // quit all routeins
+            // quit all routeins of this senzie
             senzie.quit <- true
 
             break READER
@@ -133,8 +127,14 @@ func reading(senzie *Senzie) {
                                 " digisig"
                     senzie.out <- z
                 } else if(key.Value == pubkey) {
-                    // registerd senzie 
-                    // add senzie
+                    // already registerd senzie
+                    // close existing senzie's conn
+                    // delete existing senzie first
+                    // then add new senzie
+                    if senzies[senzie.name] != nil {
+                        senzies[senzie.name].conn.Close()
+                        delete(senzies, senzie.name)
+                    }
                     senzies[senzie.name] = senzie
 
                     // send status
