@@ -12,17 +12,17 @@ type Key struct {
 }
 
 type QSenz struct {
-    uid         string
-    msg         string
-    sender      string
-    receiver    string 
+    Uid         string
+    Msg         string
+    Sender      string
+    Receiver    string 
 }
 
 type MongoStore struct {
     session *mgo.Session
 }
 
-func (ks *MongoStore) put(key *Key) {
+func (ks *MongoStore) putKey(key *Key) {
     sessionCopy := ks.session.Copy() 
     defer sessionCopy.Close()
 
@@ -33,7 +33,7 @@ func (ks *MongoStore) put(key *Key) {
     }
 }
 
-func (ks *MongoStore) get(name string) *Key {
+func (ks *MongoStore) getKey(name string) *Key {
     sessionCopy := ks.session.Copy() 
     defer sessionCopy.Close()
 
@@ -92,12 +92,6 @@ func (ks *MongoStore) dequeueSenzByReceiver(receiver string) []QSenz {
     if gErr != nil {
         fmt.Println("Error get key: ", gErr.Error())
     }
-
-    // then remove
-    _, rErr := coll.RemoveAll(bson.M{"receiver": receiver})
-	if rErr != nil {
-        fmt.Println("Error remove key: ", rErr.Error())
-	}
 
     return qSenzes
 }

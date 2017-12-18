@@ -22,8 +22,8 @@ var config = Config {
     mongoHost: getEnv("MONGO_HOST", "dev.localhost"),
     mongoPort: getEnv("MONGO_PORT", "27017"),
     mongoDb: getEnv("MONGO_DB", "senz"),
-    keyColl: getEnv("KEY_COLL", "senzie"),
-    senzColl: getEnv("SENZ_COLL", "senz"),
+    keyColl: getEnv("KEY_COLL", "keys"),
+    senzColl: getEnv("SENZ_COLL", "senzes"),
 }
 
 func getEnv(key, fallback string) string {

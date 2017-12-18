@@ -6,6 +6,7 @@ import (
     "bufio"
     "os"
     "strings"
+    "strconv"
     "time"
     "gopkg.in/mgo.v2"
 )
@@ -109,7 +110,7 @@ func reading(senzie *Senzie) {
                 senzie.name = senz.sender
                 senzie.id = senz.attr["uid"]
                 pubkey := senz.attr["pubkey"]
-                key := mongoStore.get(senzie.name)
+                key := mongoStore.getKey(senzie.name)
 
                 println("SHARE pubKey to switch " + senzie.name + " " + senzie.id)
 
@@ -117,11 +118,12 @@ func reading(senzie *Senzie) {
                     // not registerd senzie
                     // save pubkey
                     // add senzie
-                    mongoStore.put(&Key{senzie.name, pubkey})
+                    mongoStore.putKey(&Key{senzie.name, pubkey})
                     senzies[senzie.name] = senzie
 
                     // send status
                     z := "DATA #status REG_DONE #pubkey switchkey" +
+                                " #uid " + uid() +
                                 " @" + senzie.name +
                                 " ^" + config.switchName +
                                 " digisig"
@@ -139,16 +141,18 @@ func reading(senzie *Senzie) {
 
                     // send status
                     z := "DATA #status REG_ALR #pubkey switchkey" +
+                                " #uid " + uid() +
                                 " @" + senzie.name +
                                 " ^" + config.switchName +
                                 " digisig"
                     senzie.out <- z
 
-                    // despatch queues messages of senzie
-                    go despatching(senzie)
+                    // dispatch queues messages of senzie
+                    go dispatching(senzie)
                 } else {
                     // name already obtained
                     z := "DATA #status REG_FAIL #pubkey switchkey" +
+                                " #uid " + uid() +
                                 " @" + senzie.name +
                                 " ^" + config.switchName +
                                 " digisig"
@@ -157,7 +161,7 @@ func reading(senzie *Senzie) {
             } else if(senz.ztype == "GET") {
                 // this is requesting pub key of other senzie
                 // fing pubkey and send
-                key := mongoStore.get(senz.attr["name"])
+                key := mongoStore.getKey(senz.attr["name"])
                 z := "DATA #pubkey " + key.Value +
                             " #name " + senz.attr["name"] +
                             " #uid " + senz.attr["uid"] +
@@ -188,13 +192,13 @@ func reading(senzie *Senzie) {
     }
 }
 
-func despatching(senzie *Senzie) {
-    // find queued messages from radis
+func dispatching(senzie *Senzie) {
+    // find queued messages from mongo store
     var zs = mongoStore.dequeueSenzByReceiver(senzie.name)
 
-    // despatch queued messages to senzie
+    // dispatch queued messages to senzie
     for _, z := range zs {
-        senzie.out <- z.msg
+        senzie.out <- z.Msg 
     }
 }
 
@@ -214,6 +218,15 @@ func writing(senzie *Senzie)  {
             println(senz)
             writer.WriteString(senz + ";")
             writer.Flush()
+
+            // we queue the writing messages 
+            z := parse(senz) 
+            qSenz := &QSenz{}
+            qSenz.Uid = z.attr["uid"]
+            qSenz.Sender = z.sender
+            qSenz.Receiver = z.receiver
+            qSenz.Msg = senz
+            mongoStore.enqueueSenz(qSenz)
         case <-senzie.tik.C:
             println("ticking -- " + senzie.id)
             writer.WriteString("TIK;")
@@ -266,4 +279,9 @@ func parse(msg string)*Senz {
     }
 
     return senz
+}
+
+func uid()string {
+    t := time.Now().UnixNano() / int64(time.Millisecond) 
+    return config.switchName + strconv.FormatInt(t, 10) 
 }
