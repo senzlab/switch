@@ -30,7 +30,7 @@ type Senz struct {
 
 // keep connected senzies
 var senzies = map[string]*Senzie{}
-var keyStore = &KeyStore{}
+var mongoStore = &MongoStore{}
 
 func main() {
     // listen for incoming conns
@@ -56,7 +56,7 @@ func main() {
     defer session.Close()
 
     session.SetMode(mgo.Monotonic, true)
-    keyStore.session = session
+    mongoStore.session = session
 
     for {
         // handle new connections 
@@ -109,7 +109,7 @@ func reading(senzie *Senzie) {
                 senzie.name = senz.sender
                 senzie.id = senz.attr["uid"]
                 pubkey := senz.attr["pubkey"]
-                key := keyStore.get(senzie.name)
+                key := mongoStore.get(senzie.name)
 
                 println("SHARE pubKey to switch " + senzie.name + " " + senzie.id)
 
@@ -117,7 +117,7 @@ func reading(senzie *Senzie) {
                     // not registerd senzie
                     // save pubkey
                     // add senzie
-                    keyStore.put(&Key{senzie.name, pubkey})
+                    mongoStore.put(&Key{senzie.name, pubkey})
                     senzies[senzie.name] = senzie
 
                     // send status
@@ -143,6 +143,9 @@ func reading(senzie *Senzie) {
                                 " ^" + config.switchName +
                                 " digisig"
                     senzie.out <- z
+
+                    // despatch queues messages of senzie
+                    go despatching(senzie)
                 } else {
                     // name already obtained
                     z := "DATA #status REG_FAIL #pubkey switchkey" +
@@ -154,7 +157,7 @@ func reading(senzie *Senzie) {
             } else if(senz.ztype == "GET") {
                 // this is requesting pub key of other senzie
                 // fing pubkey and send
-                key := keyStore.get(senz.attr["name"])
+                key := mongoStore.get(senz.attr["name"])
                 z := "DATA #pubkey " + key.Value +
                             " #name " + senz.attr["name"] +
                             " #uid " + senz.attr["uid"] +
@@ -182,6 +185,16 @@ func reading(senzie *Senzie) {
                 println("no senzie " + senz.receiver)
             }
         }
+    }
+}
+
+func despatching(senzie *Senzie) {
+    // find queued messages from radis
+    var zs = mongoStore.dequeueSenzByReceiver(senzie.name)
+
+    // despatch queued messages to senzie
+    for _, z := range zs {
+        senzie.out <- z.msg
     }
 }
 
