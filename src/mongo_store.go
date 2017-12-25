@@ -11,13 +11,6 @@ type Key struct {
     Value       string
 }
 
-type QSenz struct {
-    Uid         string
-    Msg         string
-    Sender      string
-    Receiver    string 
-}
-
 type MongoStore struct {
     session *mgo.Session
 }
@@ -47,7 +40,7 @@ func (ks *MongoStore) getKey(name string) *Key {
     return key
 }
 
-func (ks *MongoStore) enqueueSenz(qSenz *QSenz) {
+func (ks *MongoStore) enqueueSenz(qSenz Senz) {
     sessionCopy := ks.session.Copy() 
     defer sessionCopy.Close()
 
@@ -58,21 +51,21 @@ func (ks *MongoStore) enqueueSenz(qSenz *QSenz) {
     }
 }
 
-func (ks *MongoStore) dequeueSenzById(uid string) *QSenz {
+func (ks *MongoStore) dequeueSenzById(uid string) *Senz {
     sessionCopy := ks.session.Copy() 
     defer sessionCopy.Close()
 
     var coll = sessionCopy.DB(config.mongoDb).C(config.senzColl)
 
     // get
-    qSenz := &QSenz{}
+    qSenz := &Senz{}
     gErr := coll.Find(bson.M{"uid": uid}).One(qSenz)
     if gErr != nil {
         fmt.Println("Error get key: ", gErr.Error())
     }
 
     // then remove
-    rErr := coll.Remove(bson.M{"uid": "uid"})
+    rErr := coll.Remove(bson.M{"uid": uid})
 	if rErr != nil {
         fmt.Println("Error remove key: ", rErr.Error())
 	}
@@ -80,18 +73,32 @@ func (ks *MongoStore) dequeueSenzById(uid string) *QSenz {
     return qSenz
 }
 
-func (ks *MongoStore) dequeueSenzByReceiver(receiver string) []QSenz {
+func (ks *MongoStore) dequeueSenzByReceiver(receiver string) []Senz {
     sessionCopy := ks.session.Copy()
     defer sessionCopy.Close()
 
     var coll = sessionCopy.DB(config.mongoDb).C(config.senzColl)
 
+    fmt.Println("dequeuing senz of : ", receiver)
+
     // get
-    var qSenzes []QSenz
-    gErr := coll.Find(bson.M{"receiver": receiver}).All(qSenzes)
+    var qSenzes []Senz
+    gErr := coll.Find(bson.M{"receiver": receiver}).All(&qSenzes)
     if gErr != nil {
         fmt.Println("Error get key: ", gErr.Error())
     }
+
+    // senz id to delete
+    var dSenzes []string
+    for _, z := range qSenzes {
+        dSenzes = append(dSenzes, z.Uid)
+    }
+
+    // then remove all
+    _, rErr := coll.RemoveAll(bson.M{"uid": bson.M{"$in": dSenzes}})
+	if rErr != nil {
+        fmt.Println("Error remove key: ", rErr.Error())
+	}
 
     return qSenzes
 }

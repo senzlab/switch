@@ -14,19 +14,20 @@ import (
 type Senzie struct {
     name        string
     id          string
-	out         chan string
+	out         chan Senz
     quit        chan bool
     tik         *time.Ticker
     conn        net.Conn
 }
 
 type Senz struct {
-    msg         string
-    ztype       string
-    sender      string
-    receiver    string
-    attr        map[string]string
-    digsig      string
+    Msg         string
+    Uid          string
+    Ztype       string
+    Sender      string
+    Receiver    string
+    Attr        map[string]string
+    Digsig      string
 }
 
 // keep connected senzies
@@ -69,7 +70,7 @@ func main() {
 
         // new senzie
         senzie := &Senzie {
-            out: make(chan string),
+            out: make(chan Senz),
             quit: make(chan bool),
             tik: time.NewTicker(60 * time.Second),
             conn: conn,
@@ -103,13 +104,13 @@ func reading(senzie *Senzie) {
 
         // parse senz and handle it
         senz := parse(msg)
-        if(senz.receiver == config.switchName) {
-            if(senz.ztype == "SHARE") {
+        if(senz.Receiver == config.switchName) {
+            if(senz.Ztype == "SHARE") {
                 // this is shareing pub key(registration)
                 // save pubkey in db
-                senzie.name = senz.sender
-                senzie.id = senz.attr["uid"]
-                pubkey := senz.attr["pubkey"]
+                senzie.name = senz.Sender
+                senzie.id = senz.Attr["uid"]
+                pubkey := senz.Attr["pubkey"]
                 key := mongoStore.getKey(senzie.name)
 
                 println("SHARE pubKey to switch " + senzie.name + " " + senzie.id)
@@ -122,12 +123,20 @@ func reading(senzie *Senzie) {
                     senzies[senzie.name] = senzie
 
                     // send status
+                    uid := uid()
                     z := "DATA #status REG_DONE #pubkey switchkey" +
-                                " #uid " + uid() +
+                                " #uid " + uid +
                                 " @" + senzie.name +
                                 " ^" + config.switchName +
                                 " digisig"
-                    senzie.out <- z
+
+                    sz := Senz{}
+                    sz.Uid = uid 
+                    sz.Msg = z
+                    sz.Sender = config.switchName
+                    sz.Receiver = senzie.name
+
+                    senzie.out <- sz 
                 } else if(key.Value == pubkey) {
                     // already registerd senzie
                     // close existing senzie's conn
@@ -140,53 +149,84 @@ func reading(senzie *Senzie) {
                     senzies[senzie.name] = senzie
 
                     // send status
+                    uid := uid()
                     z := "DATA #status REG_ALR #pubkey switchkey" +
-                                " #uid " + uid() +
+                                " #uid " + uid +
                                 " @" + senzie.name +
                                 " ^" + config.switchName +
                                 " digisig"
-                    senzie.out <- z
+                    sz := Senz{}
+                    sz.Uid = uid
+                    sz.Msg = z
+                    sz.Sender = config.switchName
+                    sz.Receiver = senzie.name
+
+                    senzie.out <- sz
 
                     // dispatch queues messages of senzie
                     go dispatching(senzie)
                 } else {
                     // name already obtained
+                    uid := uid()
                     z := "DATA #status REG_FAIL #pubkey switchkey" +
-                                " #uid " + uid() +
+                                " #uid " + uid +
                                 " @" + senzie.name +
                                 " ^" + config.switchName +
                                 " digisig"
-                    senzie.out <- z
+
+                    sz := Senz{}
+                    sz.Uid = uid
+                    sz.Msg = z
+                    sz.Sender = config.switchName
+                    sz.Receiver = senzie.name
+
+                    senzie.out <- sz
                 }
-            } else if(senz.ztype == "GET") {
+            } else if(senz.Ztype == "GET") {
                 // this is requesting pub key of other senzie
                 // fing pubkey and send
-                key := mongoStore.getKey(senz.attr["name"])
+                key := mongoStore.getKey(senz.Attr["name"])
+                uid := senz.Attr["uid"]
                 z := "DATA #pubkey " + key.Value +
-                            " #name " + senz.attr["name"] +
-                            " #uid " + senz.attr["uid"] +
+                            " #name " + uid +
+                            " #uid " + senz.Attr["uid"] +
                             " @" + senzie.name +
                             " ^" + config.switchName +
                             " digisig"
-                senzie.out <- z
+
+                sz := Senz{}
+                sz.Uid = uid
+                sz.Msg = z
+                sz.Sender = config.switchName
+                sz.Receiver = senzie.name
+
+                senzie.out <- sz
             }
         } else {
             // senz for another senzie
-            println("SENZ for senzie " + senz.msg)
+            println("SENZ for senzie " + senz.Msg)
 
             // send ack back to sender
+            uid := senz.Attr["uid"]
             z := "DATA #status RECEIVED" +
-                        " #uid " + senz.attr["uid"] +
+                        " #uid " + uid +
                         " @" + senzie.name +
                         " ^" + config.switchName +
                         " digisig"
-            senzie.out <- z
+
+            sz := Senz{}
+            sz.Uid = uid
+            sz.Msg = z
+            sz.Sender = config.switchName
+            sz.Receiver = senzie.name
+
+            senzie.out <- sz
 
             // forwared senz msg to receiver
-            if senzies[senz.receiver] != nil {
-                senzies[senz.receiver].out <- senz.msg
+            if senzies[senz.Receiver] != nil {
+                senzies[senz.Receiver].out <- senz
             } else {
-                println("no senzie " + senz.receiver)
+                println("no senzie " + senz.Receiver)
             }
         }
     }
@@ -198,7 +238,7 @@ func dispatching(senzie *Senzie) {
 
     // dispatch queued messages to senzie
     for _, z := range zs {
-        senzie.out <- z.Msg 
+        senzie.out <- z
     }
 }
 
@@ -215,18 +255,12 @@ func writing(senzie *Senzie)  {
             break WRITER
         case senz := <-senzie.out:
             println("writing -- " + senzie.id)
-            println(senz)
-            writer.WriteString(senz + ";")
+            println(senz.Msg)
+            writer.WriteString(senz.Msg + ";")
             writer.Flush()
 
             // we queue the writing messages 
-            z := parse(senz) 
-            qSenz := &QSenz{}
-            qSenz.Uid = z.attr["uid"]
-            qSenz.Sender = z.sender
-            qSenz.Receiver = z.receiver
-            qSenz.Msg = senz
-            mongoStore.enqueueSenz(qSenz)
+            mongoStore.enqueueSenz(senz)
         case <-senzie.tik.C:
             println("ticking -- " + senzie.id)
             writer.WriteString("TIK;")
@@ -235,30 +269,30 @@ func writing(senzie *Senzie)  {
     }
 }
 
-func parse(msg string)*Senz {
+func parse(msg string)Senz {
     replacer := strings.NewReplacer(";", "", "\n", "")
     tokens := strings.Split(strings.TrimSpace(replacer.Replace(msg)), " ")
-    senz := &Senz {}
-    senz.msg = msg
-    senz.attr = map[string]string{}
+    senz := Senz {}
+    senz.Msg = msg
+    senz.Attr = map[string]string{}
 
     for i := 0; i < len(tokens); i++ {
         if(i == 0) {
-            senz.ztype = tokens[i]
+            senz.Ztype = tokens[i]
         } else if(i == len(tokens) - 1) {
             // signature at the end
-            senz.digsig = tokens[i]
+            senz.Digsig = tokens[i]
         } else if(strings.HasPrefix(tokens[i], "@")) {
             // receiver @eranga
-            senz.receiver = tokens[i][1:]
+            senz.Receiver = tokens[i][1:]
         } else if(strings.HasPrefix(tokens[i], "^")) {
             // sender ^lakmal
-            senz.sender = tokens[i][1:]
+            senz.Sender = tokens[i][1:]
         } else if(strings.HasPrefix(tokens[i], "$")) {
             // $key er2232
             key := tokens[i][1:]
             val := tokens[i + 1]
-            senz.attr[key] = val
+            senz.Attr[key] = val
             i ++
         } else if(strings.HasPrefix(tokens[i], "#")) {
             key := tokens[i][1:]
@@ -269,19 +303,22 @@ func parse(msg string)*Senz {
                 // #lat #lon
                 // #lat @eranga
                 // #lat $key 32eewew
-                senz.attr[key] = ""
+                senz.Attr[key] = ""
             } else {
                 // #lat 3.2323 #lon 5.3434
-                senz.attr[key] = nxt
+                senz.Attr[key] = nxt
                 i ++
             }
         }
     }
 
+    // set uid as the senz id
+    senz.Uid = senz.Attr["uid"]
+
     return senz
 }
 
 func uid()string {
-    t := time.Now().UnixNano() / int64(time.Millisecond) 
-    return config.switchName + strconv.FormatInt(t, 10) 
+    t := time.Now().UnixNano() / int64(time.Millisecond)
+    return config.switchName + strconv.FormatInt(t, 10)
 }
