@@ -129,7 +129,6 @@ func reading(senzie *Senzie) {
                                 " @" + senzie.name +
                                 " ^" + config.switchName +
                                 " digisig"
-
                     sz := Senz{}
                     sz.Uid = uid 
                     sz.Msg = z
@@ -163,7 +162,7 @@ func reading(senzie *Senzie) {
 
                     senzie.out <- sz
 
-                    // dispatch queues messages of senzie
+                    // dispatch queued messages of senzie
                     go dispatching(senzie)
                 } else {
                     // name already obtained
@@ -173,7 +172,6 @@ func reading(senzie *Senzie) {
                                 " @" + senzie.name +
                                 " ^" + config.switchName +
                                 " digisig"
-
                     sz := Senz{}
                     sz.Uid = uid
                     sz.Msg = z
@@ -188,12 +186,11 @@ func reading(senzie *Senzie) {
                 key := mongoStore.getKey(senz.Attr["name"])
                 uid := senz.Attr["uid"]
                 z := "DATA #pubkey " + key.Value +
-                            " #name " + uid +
+                            " #name " + senz.Attr["name"] +
                             " #uid " + senz.Attr["uid"] +
                             " @" + senzie.name +
                             " ^" + config.switchName +
                             " digisig"
-
                 sz := Senz{}
                 sz.Uid = uid
                 sz.Msg = z
@@ -201,19 +198,40 @@ func reading(senzie *Senzie) {
                 sz.Receiver = senzie.name
 
                 senzie.out <- sz
+            } else if(senz.Ztype == "AWA") {
+                // this means message delivered to senzie
+                // get senz with given uid
+                uid := senz.Attr["uid"]
+                var dz = mongoStore.dequeueSenzById(uid)
+
+                // giya message 
+                z := "GIYA #uid " + uid +
+                            " @" + senzie.name +
+                            " ^" + config.switchName +
+                            " digisig"
+                sz := Senz{}
+                sz.Uid = uid
+                sz.Msg = z
+                sz.Sender = config.switchName
+                sz.Receiver = dz.Sender
+
+                // find sender and send GIYA 
+                if senzies[dz.Sender] != nil {
+                    senzies[dz.Sender].out <- sz
+                } else {
+                    println("no senzie " + senz.Receiver)
+                }
             }
         } else {
             // senz for another senzie
             println("SENZ for senzie " + senz.Msg)
 
-            // send ack back to sender
+            // send AWA back to sender
             uid := senz.Attr["uid"]
-            z := "DATA #status RECEIVED" +
-                        " #uid " + uid +
+            z := "AWA #uid " + uid +
                         " @" + senzie.name +
                         " ^" + config.switchName +
                         " digisig"
-
             sz := Senz{}
             sz.Uid = uid
             sz.Msg = z
@@ -221,6 +239,9 @@ func reading(senzie *Senzie) {
             sz.Receiver = senzie.name
 
             senzie.out <- sz
+
+            // we queue the senz 
+            mongoStore.enqueueSenz(senz)
 
             // forwared senz msg to receiver
             if senzies[senz.Receiver] != nil {
@@ -258,9 +279,6 @@ func writing(senzie *Senzie)  {
             println(senz.Msg)
             writer.WriteString(senz.Msg + ";")
             writer.Flush()
-
-            // we queue the writing messages 
-            mongoStore.enqueueSenz(senz)
         case <-senzie.tik.C:
             println("ticking -- " + senzie.id)
             writer.WriteString("TIK;")
