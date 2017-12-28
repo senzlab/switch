@@ -289,9 +289,10 @@ func writing(senzie *Senzie)  {
 
 func parse(msg string)Senz {
     replacer := strings.NewReplacer(";", "", "\n", "")
-    tokens := strings.Split(strings.TrimSpace(replacer.Replace(msg)), " ")
+    fMsg := strings.TrimSpace(replacer.Replace(msg))
+    tokens := strings.Split(fMsg, " ")
     senz := Senz {}
-    senz.Msg = msg
+    senz.Msg = fMsg
     senz.Attr = map[string]string{}
 
     for i := 0; i < len(tokens); i++ {
