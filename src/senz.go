@@ -68,6 +68,10 @@ func main() {
             os.Exit(1)
         }
 
+        // enable keep alive
+	    conn.(*net.TCPConn).SetKeepAlive(true)
+		conn.(*net.TCPConn).SetKeepAlivePeriod(60 * time.Second)
+
         // new senzie
         senzie := &Senzie {
             out: make(chan Senz),
@@ -83,6 +87,7 @@ func main() {
 
 func reading(senzie *Senzie) {
     reader := bufio.NewReader(senzie.conn)
+    var buf bytes.Buffer
 
     // read senz
     READER:
@@ -96,6 +101,8 @@ func reading(senzie *Senzie) {
 
             break READER
         }
+
+        println("received " + msg + "from " + senzie.name)
 
         // not handle TAK, TIK, TUK
         if(msg == "TAK;" || msg == "TIK;" || msg == "TUK;") {
@@ -219,7 +226,7 @@ func reading(senzie *Senzie) {
                 if senzies[dz.Sender] != nil {
                     senzies[dz.Sender].out <- sz
                 } else {
-                    println("no senzie " + senz.Receiver)
+                    fmt.Println("no senzie to send giya: " + senz.Receiver, " :" + sz.Msg)
                 }
             }
         } else {
@@ -247,7 +254,7 @@ func reading(senzie *Senzie) {
             if senzies[senz.Receiver] != nil {
                 senzies[senz.Receiver].out <- senz
             } else {
-                println("no senzie " + senz.Receiver)
+                fmt.Println("no senzie to forward senz: ", senz.Receiver, " :"+ senz.Msg)
             }
         }
     }

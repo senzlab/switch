@@ -16,43 +16,43 @@ type MongoStore struct {
 }
 
 func (ks *MongoStore) putKey(key *Key) {
-    sessionCopy := ks.session.Copy() 
+    sessionCopy := ks.session.Copy()
     defer sessionCopy.Close()
 
     var coll = sessionCopy.DB(config.mongoDb).C(config.keyColl)
     err := coll.Insert(key)
     if err != nil {
-        fmt.Println("Error put key: ", err.Error())
+        fmt.Println("Error put key: ", err.Error(), ": " + key.Name)
     }
 }
 
 func (ks *MongoStore) getKey(name string) *Key {
-    sessionCopy := ks.session.Copy() 
+    sessionCopy := ks.session.Copy()
     defer sessionCopy.Close()
 
     var coll = sessionCopy.DB(config.mongoDb).C(config.keyColl)
     key := &Key{}
     err := coll.Find(bson.M{"name": name}).One(key)
     if err != nil {
-        fmt.Println("Error get key: ", err.Error())
+        fmt.Println("Error get key: ", err.Error(), ": " + name)
     }
 
     return key
 }
 
 func (ks *MongoStore) enqueueSenz(qSenz Senz) {
-    sessionCopy := ks.session.Copy() 
+    sessionCopy := ks.session.Copy()
     defer sessionCopy.Close()
 
     var coll = sessionCopy.DB(config.mongoDb).C(config.senzColl)
     err := coll.Insert(qSenz)
     if err != nil {
-        fmt.Println("Error put key: ", err.Error())
+        fmt.Println("Error enque senz: ", err.Error())
     }
 }
 
 func (ks *MongoStore) dequeueSenzById(uid string) *Senz {
-    sessionCopy := ks.session.Copy() 
+    sessionCopy := ks.session.Copy()
     defer sessionCopy.Close()
 
     var coll = sessionCopy.DB(config.mongoDb).C(config.senzColl)
@@ -61,13 +61,13 @@ func (ks *MongoStore) dequeueSenzById(uid string) *Senz {
     qSenz := &Senz{}
     gErr := coll.Find(bson.M{"uid": uid}).One(qSenz)
     if gErr != nil {
-        fmt.Println("Error get key: ", gErr.Error())
+        fmt.Println("Error deque senz: ", gErr.Error())
     }
 
     // then remove
     rErr := coll.Remove(bson.M{"uid": uid})
 	if rErr != nil {
-        fmt.Println("Error remove key: ", rErr.Error())
+        fmt.Println("Error remove senz: ", rErr.Error())
 	}
 
     return qSenz
@@ -85,7 +85,7 @@ func (ks *MongoStore) dequeueSenzByReceiver(receiver string) []Senz {
     var qSenzes []Senz
     gErr := coll.Find(bson.M{"receiver": receiver}).All(&qSenzes)
     if gErr != nil {
-        fmt.Println("Error get key: ", gErr.Error())
+        fmt.Println("Error get senz: ", gErr.Error())
     }
 
     // senz id to delete
