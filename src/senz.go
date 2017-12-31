@@ -9,6 +9,7 @@ import (
     "strconv"
     "time"
     "gopkg.in/mgo.v2"
+    "bytes"
 )
 
 type Senzie struct {
@@ -18,6 +19,7 @@ type Senzie struct {
     quit        chan bool
     tik         *time.Ticker
     conn        net.Conn
+    buf         bytes.Buffer
 }
 
 type Senz struct {
@@ -80,26 +82,44 @@ func main() {
             conn: conn,
         }
 
+        go listening(senzie)
         go reading(senzie)
         go writing(senzie)
     }
 }
 
+func listening(senzie *Senzie) {
+    tmp := make([]byte, 256)
+
+    for {
+        n, err := senzie.conn.Read(tmp)
+        if err != nil {
+            println(err.Error())
+            os.Exit(1)
+        }
+
+        if n > 0 {
+            senzie.buf.Write(tmp[:n])
+        }
+    }
+}
+
 func reading(senzie *Senzie) {
-    reader := bufio.NewReader(senzie.conn)
-    var buf bytes.Buffer
+    var msg string
 
     // read senz
     READER:
     for {
-        msg, err := reader.ReadString(';')
-        if err != nil {
-            fmt.Println("Error reading: ", err.Error())
-
-            // quit all routeins of this senzie
-            senzie.quit <- true
-
+        select {
+        case <- senzie.quit:
             break READER
+        default:
+            s, _ := senzie.buf.ReadString(';')
+            if(len(s) > 0) {
+                senzie.buf.NewBufferString(s)
+            } else {
+                continue READER
+            }
         }
 
         println("received " + msg + "from " + senzie.name)
@@ -295,7 +315,7 @@ func writing(senzie *Senzie)  {
 }
 
 func parse(msg string)Senz {
-    replacer := strings.NewReplacer(";", "", "\n", "")
+    replacer := strings.NewReplacer(";", "", "\n", "", "\r", "")
     fMsg := strings.TrimSpace(replacer.Replace(msg))
     tokens := strings.Split(fMsg, " ")
     senz := Senz {}
