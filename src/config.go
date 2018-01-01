@@ -13,6 +13,9 @@ type Config struct {
     mongoDb     string
     keyColl     string
     senzColl    string
+    dotKeys     string
+    idRsa       string
+    idRsaPub    string
 }
 
 var config = Config {
@@ -24,6 +27,9 @@ var config = Config {
     mongoDb: getEnv("MONGO_DB", "senz"),
     keyColl: getEnv("KEY_COLL", "keys"),
     senzColl: getEnv("SENZ_COLL", "senzes"),
+    dotKeys: getEnv("DOT_KEYS", ".keys"),
+    idRsa: getEnv("ID_RSA", ".keys/id_rsa"),
+    idRsaPub: getEnv("ID_RSA_PUB", ".keys/id_rsa.pub"),
 }
 
 func getEnv(key, fallback string) string {

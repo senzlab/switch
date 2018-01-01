@@ -35,6 +35,9 @@ var senzies = map[string]*Senzie{}
 var mongoStore = &MongoStore{}
 
 func main() {
+    // first init key pair
+    initSwitchKey()
+
     // listen for incoming conns
     l, err := net.Listen("tcp", ":" + config.switchPort)
     if err != nil {
