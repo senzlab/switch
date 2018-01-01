@@ -9,7 +9,6 @@ import (
     "strconv"
     "time"
     "gopkg.in/mgo.v2"
-    "bytes"
 )
 
 type Senzie struct {
@@ -19,7 +18,6 @@ type Senzie struct {
     quit        chan bool
     tik         *time.Ticker
     conn        net.Conn
-    buf         bytes.Buffer
 }
 
 type Senz struct {
@@ -72,7 +70,6 @@ func main() {
 
         // enable keep alive
 	    conn.(*net.TCPConn).SetKeepAlive(true)
-		conn.(*net.TCPConn).SetKeepAlivePeriod(60 * time.Second)
 
         // new senzie
         senzie := &Senzie {
@@ -82,44 +79,25 @@ func main() {
             conn: conn,
         }
 
-        go listening(senzie)
         go reading(senzie)
         go writing(senzie)
     }
 }
 
-func listening(senzie *Senzie) {
-    tmp := make([]byte, 256)
-
-    for {
-        n, err := senzie.conn.Read(tmp)
-        if err != nil {
-            println(err.Error())
-            os.Exit(1)
-        }
-
-        if n > 0 {
-            senzie.buf.Write(tmp[:n])
-        }
-    }
-}
-
 func reading(senzie *Senzie) {
-    var msg string
+    reader := bufio.NewReader(senzie.conn)
 
     // read senz
     READER:
     for {
-        select {
-        case <- senzie.quit:
+        msg, err := reader.ReadString(';')
+        if err != nil {
+            fmt.Println("Error reading: ", err.Error())
+
+            // quit all routeins of this senzie
+            senzie.quit <- true
+
             break READER
-        default:
-            s, _ := senzie.buf.ReadString(';')
-            if(len(s) > 0) {
-                senzie.buf.NewBufferString(s)
-            } else {
-                continue READER
-            }
         }
 
         println("received " + msg + "from " + senzie.name)
