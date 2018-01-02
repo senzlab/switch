@@ -10,6 +10,7 @@ import (
     "encoding/pem"
     "encoding/base64"
     "io/ioutil"
+    "strings"
     "fmt"
     "os"
 )
@@ -122,13 +123,14 @@ func getSwitchKey()*rsa.PrivateKey {
 }
 
 func getSenzieKey(keyStr string) *rsa.PublicKey {
-    key := "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCTe3NEX8omY+NOcrvtZ27cUR6HJL5JyVj8lv2RmIa4XicoxD9NuPkMeovDLOyhAqUITosbZCmdGjKfyrLzGxU33VlyPjODfFars3baLf4Hdh7IfN6Z+w5xevE88hPaJdWXnZyfvtUHxGF/0mOsowfOZT5Cm+6+G6PPGDdAnQ2P6wIDAQAB"
-	data, err := base64.StdEncoding.DecodeString(key)
+    // key is base64 encoded
+	data, err := base64.StdEncoding.DecodeString(keyStr)
     if err != nil {
         println(err.Error())
         return nil
     }
 
+    // get rsa public key
     pub, err := x509.ParsePKIXPublicKey(data)
 	if err != nil {
 		println(err.Error())
@@ -141,9 +143,15 @@ func getSenzieKey(keyStr string) *rsa.PublicKey {
     }
 }
 
-func sing(payload string, key *rsa.PrivateKey) (string, error) {
-    // hash the payload first
-	hashed := sha256.Sum256([]byte(payload))
+func sing(payload string) (string, error) {
+    // first replace unwanted characters and format payload
+    // then hash it
+    replacer := strings.NewReplacer(";", "", "\n", "", "\r", "")
+    fPayload := strings.TrimSpace(replacer.Replace(payload))
+	hashed := sha256.Sum256([]byte(fPayload))
+
+    // get private key
+    key := getSwitchKey()
 
     // sign the hased payload
     signature, err := rsa.SignPKCS1v15(rand.Reader, key, crypto.SHA256, hashed[:])
@@ -166,21 +174,5 @@ func verify(payload string, signedPayload string, key *rsa.PublicKey) error {
     // hased payload
 	hashed := sha256.Sum256([]byte(payload))
 
-    return rsa.VerifyPKCS1v15(key, crypto.SHA256, hashed[:], signature) 
-}
-
-func getPrivateKey(keyStr string) (*rsa.PrivateKey) {
-    key := "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCTe3NEX8omY+NOcrvtZ27cUR6HJL5JyVj8lv2RmIa4XicoxD9NuPkMeovDLOyhAqUITosbZCmdGjKfyrLzGxU33VlyPjODfFars3baLf4Hdh7IfN6Z+w5xevE88hPaJdWXnZyfvtUHxGF/0mOsowfOZT5Cm+6+G6PPGDdAnQ2P6wIDAQAB"
-	data, err := base64.StdEncoding.DecodeString(key)
-    if err != nil {
-        println(err.Error())
-        return nil
-    }
-
-    privateKey, err := x509.ParsePKCS1PrivateKey(data)
-	if err != nil {
-		println(err.Error())
-	}
-
-    return privateKey
+    return rsa.VerifyPKCS1v15(key, crypto.SHA256, hashed[:], signature)
 }
