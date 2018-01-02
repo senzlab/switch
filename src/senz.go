@@ -38,6 +38,20 @@ func main() {
     // first init key pair
     setUpKeys()
 
+    m := "SHARE #lat #lon;"
+    s,e := sign(m)
+    if e != nil {
+        println(e.Error)
+        os.Exit(1)
+    }
+
+    e = verify(m, s, getIdRsaPub())
+    if e != nil {
+        println("erroroo0 ")
+    }
+
+    println(s)
+
     // listen for incoming conns
     l, err := net.Listen("tcp", ":" + config.switchPort)
     if err != nil {

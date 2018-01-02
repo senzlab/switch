@@ -6,7 +6,6 @@ import (
     "crypto/rsa"
     "crypto/x509"
     "crypto/sha256"
-    "encoding/asn1"
     "encoding/pem"
     "encoding/base64"
     "io/ioutil"
@@ -80,13 +79,18 @@ func saveIdRsa(fileName string, keyPair *rsa.PrivateKey) {
 
 func saveIdRsaPub(fileName string, keyPair *rsa.PrivateKey) {
     // public key stream
-    asn1Bytes, err := asn1.Marshal(keyPair.PublicKey)
+    pubKeyBytes, err := x509.MarshalPKIXPublicKey(&keyPair.PublicKey)
+    if err != nil {
+        fmt.Println("Error : ", err.Error())
+        os.Exit(1)
+    }
+
     publicKeyBlock := &pem.Block{
 		Type:  "PUBLIC KEY",
-		Bytes: asn1Bytes,
+		Bytes: pubKeyBytes,
 	}
 
-    // create file 
+    // create file
     f, err := os.Create(fileName)
     if err != nil {
         fmt.Println("Error : ", err.Error())
@@ -95,7 +99,7 @@ func saveIdRsaPub(fileName string, keyPair *rsa.PrivateKey) {
 
     err = pem.Encode(f, publicKeyBlock)
     if err != nil {
-        fmt.Println("Error : ", err.Error())
+        fmt.Println("Error mongo: ", err.Error())
         os.Exit(1)
     }
 }
@@ -122,6 +126,32 @@ func getIdRsa()*rsa.PrivateKey {
     return privateKey
 }
 
+func getIdRsaPub()*rsa.PublicKey {
+    keyData, err := ioutil.ReadFile(config.idRsaPub)
+    if err != nil {
+        fmt.Println("Error : ", err.Error())
+        return nil
+    }
+
+    keyBlock, _ := pem.Decode(keyData)
+    if keyBlock == nil {
+        fmt.Println("Error : ", "invalid key")
+        return nil
+    }
+
+    publicKey, err := x509.ParsePKIXPublicKey(keyBlock.Bytes)
+    if err != nil {
+        fmt.Println("Error : ", "invalid key")
+        return nil
+    }
+    switch publicKey := publicKey.(type) {
+    case *rsa.PublicKey:
+        return publicKey
+    default:
+        return nil
+    }
+}
+
 func getIdRsaPubStr()string {
     keyData, err := ioutil.ReadFile(config.idRsaPub)
     if err != nil {
@@ -139,7 +169,7 @@ func getIdRsaPubStr()string {
     return base64.StdEncoding.EncodeToString(keyBlock.Bytes)
 }
 
-func getSenzieKey(keyStr string) *rsa.PublicKey {
+func getSenziePubStr(keyStr string) *rsa.PublicKey {
     // key is base64 encoded
 	data, err := base64.StdEncoding.DecodeString(keyStr)
     if err != nil {
@@ -160,7 +190,7 @@ func getSenzieKey(keyStr string) *rsa.PublicKey {
     }
 }
 
-func sing(payload string) (string, error) {
+func sign(payload string) (string, error) {
     // first replace unwanted characters and format payload
     // then hash it
     replacer := strings.NewReplacer(";", "", "\n", "", "\r", "")
@@ -178,15 +208,18 @@ func sing(payload string) (string, error) {
     return base64.StdEncoding.EncodeToString(signature), nil
 }
 
-func verify(payload string, signedPayload string, key *rsa.PublicKey) error {
-    // decode base64 signed payload
-    signature, err := base64.StdEncoding.DecodeString(signedPayload)
+func verify(payload string, signature64 string, key *rsa.PublicKey) error {
+    // decode base64 signature 
+    signature, err := base64.StdEncoding.DecodeString(signature64)
     if err != nil {
         return err
     }
 
-    // hased payload
-	hashed := sha256.Sum256([]byte(payload))
+    // replace unwanted characters and format payload
+    // then hash it
+    replacer := strings.NewReplacer(";", "", "\n", "", "\r", "")
+    fPayload := strings.TrimSpace(replacer.Replace(payload))
+	hashed := sha256.Sum256([]byte(fPayload))
 
     return rsa.VerifyPKCS1v15(key, crypto.SHA256, hashed[:], signature)
 }
