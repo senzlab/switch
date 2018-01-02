@@ -36,7 +36,7 @@ var mongoStore = &MongoStore{}
 
 func main() {
     // first init key pair
-    initSwitchKey()
+    setUpKeys()
 
     // listen for incoming conns
     l, err := net.Listen("tcp", ":" + config.switchPort)
@@ -64,7 +64,7 @@ func main() {
     mongoStore.session = session
 
     for {
-        // handle new connections 
+        // handle new connections
         conn, err := l.Accept()
         if err != nil {
             fmt.Println("Error accepting: ", err.Error())

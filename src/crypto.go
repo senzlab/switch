@@ -17,7 +17,7 @@ import (
 
 var keySize = 1024
 
-func initSwitchKey() {
+func setUpKeys() {
     // check keys exists
     if _, err := os.Stat(config.dotKeys); err == nil {
         println("keys exists")
@@ -35,8 +35,8 @@ func initSwitchKey() {
     // save private key
     // save public key
     keyPair := initKeyPair()
-    savePrivateKey(config.idRsa, keyPair)
-    savePublicKey(config.idRsaPub, keyPair)
+    saveIdRsa(config.idRsa, keyPair)
+    saveIdRsaPub(config.idRsaPub, keyPair)
 }
 
 func initKeyPair() *rsa.PrivateKey {
@@ -57,7 +57,7 @@ func initKeyPair() *rsa.PrivateKey {
     return keyPair
 }
 
-func savePrivateKey(fileName string, keyPair *rsa.PrivateKey) {
+func saveIdRsa(fileName string, keyPair *rsa.PrivateKey) {
     // private key stream
     privateKeyBlock := &pem.Block{
 		Type:  "PRIVATE KEY",
@@ -78,7 +78,7 @@ func savePrivateKey(fileName string, keyPair *rsa.PrivateKey) {
     }
 }
 
-func savePublicKey(fileName string, keyPair *rsa.PrivateKey) {
+func saveIdRsaPub(fileName string, keyPair *rsa.PrivateKey) {
     // public key stream
     asn1Bytes, err := asn1.Marshal(keyPair.PublicKey)
     publicKeyBlock := &pem.Block{
@@ -100,7 +100,7 @@ func savePublicKey(fileName string, keyPair *rsa.PrivateKey) {
     }
 }
 
-func getSwitchKey()*rsa.PrivateKey {
+func getIdRsa()*rsa.PrivateKey {
     keyData, err := ioutil.ReadFile(config.idRsa)
     if err != nil {
         fmt.Println("Error : ", err.Error())
@@ -120,6 +120,23 @@ func getSwitchKey()*rsa.PrivateKey {
     }
 
     return privateKey
+}
+
+func getIdRsaPubStr()string {
+    keyData, err := ioutil.ReadFile(config.idRsaPub)
+    if err != nil {
+        fmt.Println("Error : ", err.Error())
+        return ""
+    }
+
+    keyBlock, _ := pem.Decode(keyData)
+    if keyBlock == nil {
+        fmt.Println("Error : ", "invalid key")
+        return ""
+    }
+
+    // encode base64 key data
+    return base64.StdEncoding.EncodeToString(keyBlock.Bytes)
 }
 
 func getSenzieKey(keyStr string) *rsa.PublicKey {
@@ -150,11 +167,8 @@ func sing(payload string) (string, error) {
     fPayload := strings.TrimSpace(replacer.Replace(payload))
 	hashed := sha256.Sum256([]byte(fPayload))
 
-    // get private key
-    key := getSwitchKey()
-
     // sign the hased payload
-    signature, err := rsa.SignPKCS1v15(rand.Reader, key, crypto.SHA256, hashed[:])
+    signature, err := rsa.SignPKCS1v15(rand.Reader, getIdRsa(), crypto.SHA256, hashed[:])
     if err != nil {
         fmt.Fprintf(os.Stderr, "Error from signing: %s\n", err)
         return "", err
