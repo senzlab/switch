@@ -9,7 +9,6 @@ import (
     "encoding/pem"
     "encoding/base64"
     "io/ioutil"
-    "strings"
     "fmt"
     "os"
 )
@@ -191,11 +190,8 @@ func getSenziePubStr(keyStr string) *rsa.PublicKey {
 }
 
 func sign(payload string) (string, error) {
-    // first replace unwanted characters and format payload
-    // then hash it
-    replacer := strings.NewReplacer(";", "", "\n", "", "\r", "")
-    fPayload := strings.TrimSpace(replacer.Replace(payload))
-	hashed := sha256.Sum256([]byte(fPayload))
+    // remove unwated characters and get sha256 hash of the payload
+	hashed := sha256.Sum256([]byte(formatToSign(payload)))
 
     // sign the hased payload
     signature, err := rsa.SignPKCS1v15(rand.Reader, getIdRsa(), crypto.SHA256, hashed[:])
@@ -209,17 +205,14 @@ func sign(payload string) (string, error) {
 }
 
 func verify(payload string, signature64 string, key *rsa.PublicKey) error {
-    // decode base64 signature 
+    // decode base64 encoded signature
     signature, err := base64.StdEncoding.DecodeString(signature64)
     if err != nil {
         return err
     }
 
-    // replace unwanted characters and format payload
-    // then hash it
-    replacer := strings.NewReplacer(";", "", "\n", "", "\r", "")
-    fPayload := strings.TrimSpace(replacer.Replace(payload))
-	hashed := sha256.Sum256([]byte(fPayload))
+    // remove unwated characters and get sha256 hash of the payload
+	hashed := sha256.Sum256([]byte(formatToSign(payload)))
 
     return rsa.VerifyPKCS1v15(key, crypto.SHA256, hashed[:], signature)
 }

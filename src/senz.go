@@ -310,8 +310,7 @@ func writing(senzie *Senzie)  {
 }
 
 func parse(msg string)Senz {
-    replacer := strings.NewReplacer(";", "", "\n", "", "\r", "")
-    fMsg := strings.TrimSpace(replacer.Replace(msg))
+    fMsg := formatToParse(msg)
     tokens := strings.Split(fMsg, " ")
     senz := Senz {}
     senz.Msg = fMsg
