@@ -16,25 +16,25 @@ import (
 var keySize = 1024
 
 func setUpKeys() {
-    // check keys exists
-    if _, e1 := os.Stat(config.dotKeys); e1 == nil {
-        println("keys exists")
-        return
+    if _, e1 := os.Stat(config.dotKeys); e1 != nil {
+        // keys directory not exists
+        // create it
+        e2 := os.Mkdir(config.dotKeys, 0700)
+        if e2 != nil {
+            fmt.Println("Error : ", e2.Error())
+            os.Exit(1)
+        }
     }
 
-    // create keys directory
-    e2 := os.Mkdir(config.dotKeys, 0700)
-    if e2 != nil {
-        fmt.Println("Error : ", e2.Error())
-        os.Exit(1)
+    if _, e3 := os.Stat(config.idRsa); e3 != nil {
+        // keys not exists
+        // generate key pair
+        // save private key
+        // save public key
+        keyPair := initKeyPair()
+        saveIdRsa(config.idRsa, keyPair)
+        saveIdRsaPub(config.idRsaPub, keyPair)
     }
-
-    // generate key pair
-    // save private key
-    // save public key
-    keyPair := initKeyPair()
-    saveIdRsa(config.idRsa, keyPair)
-    saveIdRsaPub(config.idRsaPub, keyPair)
 }
 
 func initKeyPair() *rsa.PrivateKey {
