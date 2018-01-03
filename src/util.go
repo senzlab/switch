@@ -11,7 +11,5 @@ func formatToParse(msg string)string {
 
 func formatToSign(msg string)string {
     replacer := strings.NewReplacer(";", "", "\n", "", "\r", "", " ", "")
-    s := strings.TrimSpace(replacer.Replace(msg))
-    println(s)
-    return s
+    return strings.TrimSpace(replacer.Replace(msg))
 }

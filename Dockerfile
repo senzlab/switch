@@ -22,4 +22,7 @@ RUN go build -o build/senz src/*.go
 # running on 7070
 EXPOSE 7070
 
+# .keys volume
+VOLUME ["/app/.keys"]
+
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
