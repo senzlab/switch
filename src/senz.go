@@ -38,19 +38,29 @@ func main() {
     // first init key pair
     setUpKeys()
 
-    m := "SHARE #lat #lon;"
-    s,e := sign(m)
-    if e != nil {
-        println(e.Error)
-        os.Exit(1)
-    }
+    sz := "DATA #uid 2222222222221514972930 $msg H+M/ICt8wX6F3GLl679uNg== #time 1514972930 @111111111111 ^222222222222"
 
-    e = verify(m, s, getIdRsaPub())
-    if e != nil {
+    k := "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC339bdoIAq/L/H6vdTYSZ3U2aYlFGVjQFySSWygXDqT9AiemBiwNYsGWyPaocqDiBPjpR6vUUl+uEz/TdEpudKs86h5EknCXSD4OKUUhv8mLWBIljOIFCLM1n+GHq8Ir31KJRSEpk8e9s+97yoZQTweEYPfhUjrsAS7hstDv6nuQIDAQAB"
+
+    pk := "MIICdwIBADANBgkqhkiG9w0BAQEFAASCAmEwggJdAgEAAoGBALff1t2ggCr8v8fq91NhJndTZpiUUZWNAXJJJbKBcOpP0CJ6YGLA1iwZbI9qhyoOIE+OlHq9RSX64TP9N0Sm50qzzqHkSScJdIPg4pRSG/yYtYEiWM4gUIszWf4YerwivfUolFISmTx72z73vKhlBPB4Rg9+FSOuwBLuGy0O/qe5AgMBAAECgYEAoXoQJh4XsKi6e4UborvEnjI9/WzzoNRuGsGmO3d1hDCHZl/2WYNkEuJY9jHldcdmFLfwKUIigdIrCA8uBDpXD0P9OBXOwMs6wbLmDY7nziPlrSpFMEaV7tgfcEbJ5pCNnyUOfLLgQCEQX2fKbL7LVba/DMtmjr7Y+fa56d/NlAECQQDkQIJon54OED+PWCSMqtyRiIU+iurq7Hwyfl8Jrc6/BWFtczdChuOMgKe/lV4x8r0xxjiM/qKkeVeOY5rXY8DBAkEAzjo+CUYaFandcBl//AD8iMqJQZ6sj7zVkhDhPjTaaZCZjgmDfqkDrcd+TQrCDL8uPWnFTIqmRcPZuC3ruJcs+QJAJLK+hOXM+sPgBEMOtVMvXXLOwYyCUr0tBs1MqHi6efn6fSd+JgMcCNYSonn4iB1YD+2n3/t82ObtjeYz2heewQJBAM4SxQrfUhFzvCLYWFupYLAQMzevJyA6we9DjtBqYBY8uDSGrS9UFKkCP+McbOvv3nTfzJe/tIbiPh0dRf8ekYECQDUr/a8CJzbhrP0PkL6epboHQOq585s1HdSYZQTwNYsAKgHshk9iagEYl6NCAhxnPkNBp3iYXApmKytJIWQbLBs="
+
+    s := "gYGc0A+T1XmI1j89UP5osibQX7z3YBWMZRZ5NqozqWpyOC7PVXOlWFddNM3WaFtURUXpzxJBJ1EM+d2qHxeEuY3DpND3UZ+lVIPK26NLmQ7ipAW9Q2Ft8niDMrpXztgccStN4NyNiBtejEqDk2j121AKhvZmk2a5WPfGGqfO7NQ="
+
+    spk := getSenzieRsa(pk)
+    sig, e1 := sign(sz, spk)
+    if e1 != nil {
         println("erroroo0 ")
+        println(e1.Error)
     }
+    println(sig)
 
-    println(s)
+    e2 := verify(sz, s, getSenzieRsaPub(k))
+    if e2 != nil {
+        println("erroroo1 ")
+        println(e2.Error())
+    } else {
+        println("verified")
+    }
 
     // listen for incoming conns
     l, err := net.Listen("tcp", ":" + config.switchPort)
@@ -113,7 +123,6 @@ func reading(senzie *Senzie) {
 
             // quit all routeins of this senzie
             senzie.quit <- true
-
             break READER
         }
 
@@ -247,6 +256,16 @@ func reading(senzie *Senzie) {
         } else {
             // senz for another senzie
             println("SENZ for senzie " + senz.Msg)
+
+            // verify signature first of all
+            payload := strings.Replace(senz.Msg, senz.Digsig, "", -1)
+            senzieKey := getSenzieRsaPub(mongoStore.getKey(senzie.name).Value)
+            err := verify(payload, senz.Digsig, senzieKey)
+            if err != nil {
+                println("cannot verify signarue, so dorp the conneciton")
+                senzie.quit <- true
+                break READER
+            }
 
             // send AWA back to sender
             uid := senz.Attr["uid"]

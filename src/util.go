@@ -4,7 +4,6 @@ import (
     "strings"
 )
 
-
 func formatToParse(msg string)string {
     replacer := strings.NewReplacer(";", "", "\n", "", "\r", "")
     return strings.TrimSpace(replacer.Replace(msg))
@@ -12,6 +11,7 @@ func formatToParse(msg string)string {
 
 func formatToSign(msg string)string {
     replacer := strings.NewReplacer(";", "", "\n", "", "\r", "", " ", "")
-    return strings.TrimSpace(replacer.Replace(msg))
+    s := strings.TrimSpace(replacer.Replace(msg))
+    println(s)
+    return s
 }
-

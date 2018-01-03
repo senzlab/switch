@@ -17,15 +17,15 @@ var keySize = 1024
 
 func setUpKeys() {
     // check keys exists
-    if _, err := os.Stat(config.dotKeys); err == nil {
+    if _, e1 := os.Stat(config.dotKeys); e1 == nil {
         println("keys exists")
         return
     }
 
     // create keys directory
-    err := os.Mkdir(config.dotKeys, 0700)
-    if err != nil {
-        fmt.Println("Error : ", err.Error())
+    e2 := os.Mkdir(config.dotKeys, 0700)
+    if e2 != nil {
+        fmt.Println("Error : ", e2.Error())
         os.Exit(1)
     }
 
@@ -39,16 +39,16 @@ func setUpKeys() {
 
 func initKeyPair() *rsa.PrivateKey {
     // generate key pair
-    keyPair, err := rsa.GenerateKey(rand.Reader, keySize)
-    if err != nil {
-        fmt.Println("Error : ", err.Error())
+    keyPair, e1 := rsa.GenerateKey(rand.Reader, keySize)
+    if e1 != nil {
+        fmt.Println("Error : ", e1.Error())
         os.Exit(1)
     }
 
     // validate key
-	err = keyPair.Validate()
-	if err != nil {
-        fmt.Println("Error : ", err.Error())
+    e2 := keyPair.Validate()
+	if e2 != nil {
+        fmt.Println("Error : ", e2.Error())
         os.Exit(1)
 	}
 
@@ -63,24 +63,24 @@ func saveIdRsa(fileName string, keyPair *rsa.PrivateKey) {
 	}
 
     // create file 
-    f, err := os.Create(fileName)
-    if err != nil {
-        fmt.Println("Error : ", err.Error())
+    f, e1 := os.Create(fileName)
+    if e1 != nil {
+        fmt.Println("Error : ", e1.Error())
         os.Exit(1)
     }
 
-    err = pem.Encode(f, privateKeyBlock)
-    if err != nil {
-        fmt.Println("Error mongo: ", err.Error())
+    e2 := pem.Encode(f, privateKeyBlock)
+    if e2 != nil {
+        fmt.Println("Error mongo: ", e2.Error())
         os.Exit(1)
     }
 }
 
 func saveIdRsaPub(fileName string, keyPair *rsa.PrivateKey) {
     // public key stream
-    pubKeyBytes, err := x509.MarshalPKIXPublicKey(&keyPair.PublicKey)
-    if err != nil {
-        fmt.Println("Error : ", err.Error())
+    pubKeyBytes, e1 := x509.MarshalPKIXPublicKey(&keyPair.PublicKey)
+    if e1 != nil {
+        fmt.Println(e1.Error())
         os.Exit(1)
     }
 
@@ -90,23 +90,23 @@ func saveIdRsaPub(fileName string, keyPair *rsa.PrivateKey) {
 	}
 
     // create file
-    f, err := os.Create(fileName)
-    if err != nil {
-        fmt.Println("Error : ", err.Error())
+    f, e2 := os.Create(fileName)
+    if e2 != nil {
+        fmt.Println("Error : ", e2.Error())
         os.Exit(1)
     }
 
-    err = pem.Encode(f, publicKeyBlock)
-    if err != nil {
-        fmt.Println("Error mongo: ", err.Error())
+    e3 := pem.Encode(f, publicKeyBlock)
+    if e3 != nil {
+        fmt.Println(e3.Error())
         os.Exit(1)
     }
 }
 
 func getIdRsa()*rsa.PrivateKey {
-    keyData, err := ioutil.ReadFile(config.idRsa)
-    if err != nil {
-        fmt.Println("Error : ", err.Error())
+    keyData, e1 := ioutil.ReadFile(config.idRsa)
+    if e1 != nil {
+        fmt.Println(e1.Error())
         os.Exit(1)
     }
 
@@ -116,9 +116,9 @@ func getIdRsa()*rsa.PrivateKey {
         os.Exit(1)
     }
 
-    privateKey, err := x509.ParsePKCS1PrivateKey(keyBlock.Bytes)
-    if err != nil {
-        fmt.Println("Error : ", "invalid key")
+    privateKey, e2 := x509.ParsePKCS1PrivateKey(keyBlock.Bytes)
+    if e2 != nil {
+        fmt.Println(e2.Error())
         os.Exit(1)
     }
 
@@ -126,9 +126,9 @@ func getIdRsa()*rsa.PrivateKey {
 }
 
 func getIdRsaPub()*rsa.PublicKey {
-    keyData, err := ioutil.ReadFile(config.idRsaPub)
-    if err != nil {
-        fmt.Println("Error : ", err.Error())
+    keyData, e1 := ioutil.ReadFile(config.idRsaPub)
+    if e1 != nil {
+        fmt.Println(e1.Error())
         return nil
     }
 
@@ -138,9 +138,9 @@ func getIdRsaPub()*rsa.PublicKey {
         return nil
     }
 
-    publicKey, err := x509.ParsePKIXPublicKey(keyBlock.Bytes)
-    if err != nil {
-        fmt.Println("Error : ", "invalid key")
+    publicKey, e2 := x509.ParsePKIXPublicKey(keyBlock.Bytes)
+    if e2 != nil {
+        fmt.Println(e2.Error())
         return nil
     }
     switch publicKey := publicKey.(type) {
@@ -152,9 +152,9 @@ func getIdRsaPub()*rsa.PublicKey {
 }
 
 func getIdRsaPubStr()string {
-    keyData, err := ioutil.ReadFile(config.idRsaPub)
-    if err != nil {
-        fmt.Println("Error : ", err.Error())
+    keyData, e1 := ioutil.ReadFile(config.idRsaPub)
+    if e1 != nil {
+        fmt.Println(e1.Error())
         return ""
     }
 
@@ -168,18 +168,43 @@ func getIdRsaPubStr()string {
     return base64.StdEncoding.EncodeToString(keyBlock.Bytes)
 }
 
-func getSenziePubStr(keyStr string) *rsa.PublicKey {
+func getSenzieRsa(keyStr string) *rsa.PrivateKey {
     // key is base64 encoded
-	data, err := base64.StdEncoding.DecodeString(keyStr)
-    if err != nil {
-        println(err.Error())
+	data, e1 := base64.StdEncoding.DecodeString(keyStr)
+    if e1 != nil {
+        println(e1.Error())
+        return nil
+    }
+
+    // get rsa private key
+    key, e2 := x509.ParsePKCS8PrivateKey(data)
+	if e2 != nil {
+        println(e2.Error())
+        return nil
+	}
+    switch key := key.(type) {
+    case *rsa.PrivateKey:
+        return key
+    default:
+        return nil
+    }
+
+    return nil
+}
+
+func getSenzieRsaPub(keyStr string) *rsa.PublicKey {
+    // key is base64 encoded
+	data, e1 := base64.StdEncoding.DecodeString(keyStr)
+    if e1 != nil {
+        println(e1.Error())
         return nil
     }
 
     // get rsa public key
-    pub, err := x509.ParsePKIXPublicKey(data)
-	if err != nil {
-		println(err.Error())
+    pub, e2 := x509.ParsePKIXPublicKey(data)
+	if e2 != nil {
+		println(e2.Error())
+        return nil
 	}
     switch pub := pub.(type) {
     case *rsa.PublicKey:
@@ -189,15 +214,15 @@ func getSenziePubStr(keyStr string) *rsa.PublicKey {
     }
 }
 
-func sign(payload string) (string, error) {
+func sign(payload string, key *rsa.PrivateKey) (string, error) {
     // remove unwated characters and get sha256 hash of the payload
 	hashed := sha256.Sum256([]byte(formatToSign(payload)))
 
     // sign the hased payload
-    signature, err := rsa.SignPKCS1v15(rand.Reader, getIdRsa(), crypto.SHA256, hashed[:])
-    if err != nil {
-        fmt.Fprintf(os.Stderr, "Error from signing: %s\n", err)
-        return "", err
+    signature, e1 := rsa.SignPKCS1v15(rand.Reader, key, crypto.SHA256, hashed[:])
+    if e1 != nil {
+		println(e1.Error())
+        return "", e1
     }
 
     // reutrn base64 encoded string
@@ -206,9 +231,10 @@ func sign(payload string) (string, error) {
 
 func verify(payload string, signature64 string, key *rsa.PublicKey) error {
     // decode base64 encoded signature
-    signature, err := base64.StdEncoding.DecodeString(signature64)
-    if err != nil {
-        return err
+    signature, e1 := base64.StdEncoding.DecodeString(signature64)
+    if e1 != nil {
+        println(e1.Error())
+        return e1
     }
 
     // remove unwated characters and get sha256 hash of the payload
