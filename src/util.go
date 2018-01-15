@@ -73,3 +73,71 @@ func uid()string {
 func timestamp() int64 {
     return time.Now().UnixNano() / int64(time.Millisecond)
 }
+
+func regSenz(uid string, status string, to string)Senz {
+    z := "DATA #status " + status +
+                " #pubkey " + getIdRsaPubStr() +
+                " #uid " + uid +
+                " @" + to +
+                " ^" + config.switchName
+    s, _ := sign(z, getIdRsa())
+    sm := z + " " + s
+
+    sz := Senz{}
+    sz.Uid = uid
+    sz.Msg = sm
+    sz.Sender = config.switchName
+    sz.Receiver = to
+
+    return sz
+}
+
+func keySenz(uid string, key string, name string, to string)Senz {
+    z := "DATA #pubkey " + key +
+                " #name " + name +
+                " #uid " + uid +
+                " @" + to +
+                " ^" + config.switchName
+    s, _ := sign(z, getIdRsa())
+    sm := z + " " + s
+
+    sz := Senz{}
+    sz.Uid = uid
+    sz.Msg = sm
+    sz.Sender = config.switchName
+    sz.Receiver = to
+
+    return sz
+}
+
+func awaSenz(uid string, to string)Senz {
+    z := "AWA #uid " + uid +
+              " @" + to +
+              " ^" + config.switchName
+    s, _ := sign(z, getIdRsa())
+    sm := z + " " + s
+
+    sz := Senz{}
+    sz.Uid = uid
+    sz.Msg = sm
+    sz.Sender = config.switchName
+    sz.Receiver = to
+
+    return sz
+}
+
+func giyaSenz(uid string, to string)Senz {
+    z := "GIYA #uid " + uid +
+              " @" + to +
+              " ^" + config.switchName
+    s, _ := sign(z, getIdRsa())
+    sm := z + " " + s
+
+    sz := Senz{}
+    sz.Uid = uid
+    sz.Msg = sm
+    sz.Sender = config.switchName
+    sz.Receiver = to
+
+    return sz
+}

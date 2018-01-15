@@ -129,19 +129,8 @@ func reading(senzie *Senzie) {
                     senzies[senzie.name] = senzie
 
                     // send status
-                    uid := uid()
-                    z := "DATA #status REG_DONE #pubkey switchkey" +
-                                " #uid " + uid +
-                                " @" + senzie.name +
-                                " ^" + config.switchName +
-                                " digisig"
-                    sz := Senz{}
-                    sz.Uid = uid 
-                    sz.Msg = z
-                    sz.Sender = config.switchName
-                    sz.Receiver = senzie.name
-
-                    senzie.out <- sz 
+                    uid := senz.Attr["uid"]
+                    senzie.out <- regSenz(uid, "REG_DONE", senzie.name)
                 } else if(key.Value == pubkey) {
                     // already registerd senzie
                     // close existing senzie's conn
@@ -154,78 +143,35 @@ func reading(senzie *Senzie) {
                     senzies[senzie.name] = senzie
 
                     // send status
-                    uid := uid()
-                    z := "DATA #status REG_ALR #pubkey switchkey" +
-                                " #uid " + uid +
-                                " @" + senzie.name +
-                                " ^" + config.switchName +
-                                " digisig"
-                    sz := Senz{}
-                    sz.Uid = uid
-                    sz.Msg = z
-                    sz.Sender = config.switchName
-                    sz.Receiver = senzie.name
-
-                    senzie.out <- sz
+                    uid := senz.Attr["uid"]
+                    senzie.out <- regSenz(uid, "REG_ALR", senzie.name) 
 
                     // dispatch queued messages of senzie
                     go dispatching(senzie)
                 } else {
                     // name already obtained
-                    uid := uid()
-                    z := "DATA #status REG_FAIL #pubkey switchkey" +
-                                " #uid " + uid +
-                                " @" + senzie.name +
-                                " ^" + config.switchName +
-                                " digisig"
-                    sz := Senz{}
-                    sz.Uid = uid
-                    sz.Msg = z
-                    sz.Sender = config.switchName
-                    sz.Receiver = senzie.name
-
-                    senzie.out <- sz
+                    // send status
+                    uid := senz.Attr["uid"]
+                    senzie.out <- regSenz(uid, "REG_FAIL", senzie.name)
                 }
             } else if(senz.Ztype == "GET") {
                 // this is requesting pub key of other senzie
                 // fing pubkey and send
                 key := mongoStore.getKey(senz.Attr["name"])
                 uid := senz.Attr["uid"]
-                z := "DATA #pubkey " + key.Value +
-                            " #name " + senz.Attr["name"] +
-                            " #uid " + senz.Attr["uid"] +
-                            " @" + senzie.name +
-                            " ^" + config.switchName +
-                            " digisig"
-                sz := Senz{}
-                sz.Uid = uid
-                sz.Msg = z
-                sz.Sender = config.switchName
-                sz.Receiver = senzie.name
-
-                senzie.out <- sz
+                name := senz.Attr["name"]
+                senzie.out <- keySenz(uid, key.Value, name, senzie.name)
             } else if(senz.Ztype == "AWA") {
                 // this means message delivered to senzie
                 // get senz with given uid
                 uid := senz.Attr["uid"]
                 var dz = mongoStore.dequeueSenzById(uid)
 
-                // giya message 
-                z := "GIYA #uid " + uid +
-                            " @" + senzie.name +
-                            " ^" + config.switchName +
-                            " digisig"
-                sz := Senz{}
-                sz.Uid = uid
-                sz.Msg = z
-                sz.Sender = config.switchName
-                sz.Receiver = dz.Sender
-
-                // find sender and send GIYA 
+                // find sender and send GIYA
                 if senzies[dz.Sender] != nil {
-                    senzies[dz.Sender].out <- sz
+                    senzies[dz.Sender].out <- giyaSenz(uid, senzie.name)
                 } else {
-                    fmt.Println("no senzie to send giya: " + senz.Receiver, " :" + sz.Msg)
+                    fmt.Println("no senzie to send giya: " + senz.Receiver)
                 }
             }
         } else {
@@ -244,19 +190,9 @@ func reading(senzie *Senzie) {
 
             // send AWA back to sender
             uid := senz.Attr["uid"]
-            z := "AWA #uid " + uid +
-                        " @" + senzie.name +
-                        " ^" + config.switchName +
-                        " digisig"
-            sz := Senz{}
-            sz.Uid = uid
-            sz.Msg = z
-            sz.Sender = config.switchName
-            sz.Receiver = senzie.name
+            senzie.out <- awaSenz(uid, senzie.name)
 
-            senzie.out <- sz
-
-            // we queue the senz 
+            // we queue the senz
             mongoStore.enqueueSenz(senz)
 
             // forwared senz msg to receiver

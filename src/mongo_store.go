@@ -61,13 +61,13 @@ func (ks *MongoStore) dequeueSenzById(uid string) *Senz {
     qSenz := &Senz{}
     gErr := coll.Find(bson.M{"uid": uid}).One(qSenz)
     if gErr != nil {
-        fmt.Println("Error deque senz: ", gErr.Error())
+        fmt.Println("No deque senz uid: ", uid)
     }
 
     // then remove
     rErr := coll.Remove(bson.M{"uid": uid})
 	if rErr != nil {
-        fmt.Println("Error remove senz: ", rErr.Error())
+        fmt.Println("No remove senz uid: ", uid)
 	}
 
     return qSenz
