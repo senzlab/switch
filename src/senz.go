@@ -174,10 +174,30 @@ func reading(senzie *Senzie) {
                     fmt.Println("no senzie to send giya: " + senz.Receiver)
                 }
             }
+        } else if(senz.Receiver == "*") {
+            // broadcase senz
+            // verify signature first of all
+            payload := strings.Replace(senz.Msg, senz.Digsig, "", -1)
+            senzieKey := getSenzieRsaPub(mongoStore.getKey(senzie.name).Value)
+            err := verify(payload, senz.Digsig, senzieKey)
+            if err != nil {
+                println("cannot verify signarue, so dorp the conneciton")
+                senzie.quit <- true
+                break READER
+            }
+
+            // send AWA back to sender
+            uid := senz.Attr["uid"]
+            senzie.out <- awaSenz(uid, senzie.name)
+
+            // broadcast
+            for k, v := range senzies {
+                if (k != senz.Sender) {
+                   v.out <- senz
+                }
+            }
         } else {
             // senz for another senzie
-            println("SENZ for senzie " + senz.Msg)
-
             // verify signature first of all
             payload := strings.Replace(senz.Msg, senz.Digsig, "", -1)
             senzieKey := getSenzieRsaPub(mongoStore.getKey(senzie.name).Value)
@@ -224,8 +244,8 @@ func writing(senzie *Senzie)  {
             senzie.tik.Stop()
             break WRITER
         case senz := <-senzie.out:
-            // enqueu senz (except AWA, GIYA senz)
-            if (senz.Ztype != "AWA" && senz.Ztype != "GIYA") {
+            // enqueu senz, except AWA, GIYA senz and broadcase senz(receiver="*") 
+            if (senz.Ztype != "AWA" && senz.Ztype != "GIYA" && senz.Receiver != "*") {
                 mongoStore.enqueueSenz(senz)
             }
 
