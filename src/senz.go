@@ -192,9 +192,6 @@ func reading(senzie *Senzie) {
             uid := senz.Attr["uid"]
             senzie.out <- awaSenz(uid, senzie.name)
 
-            // we queue the senz
-            mongoStore.enqueueSenz(senz)
-
             // forwared senz msg to receiver
             if senzies[senz.Receiver] != nil {
                 senzies[senz.Receiver].out <- senz
@@ -227,8 +224,11 @@ func writing(senzie *Senzie)  {
             senzie.tik.Stop()
             break WRITER
         case senz := <-senzie.out:
-            println("writing -- " + senzie.id)
-            println(senz.Msg)
+            // enqueu senz (except AWA, GIYA senz)
+            if (senz.Ztype != "AWA" || senz.Ztype != "GIYA") {
+                mongoStore.enqueueSenz(senz)
+            }
+
             writer.WriteString(senz.Msg + ";")
             writer.Flush()
         case <-senzie.tik.C:

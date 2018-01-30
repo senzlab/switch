@@ -89,16 +89,16 @@ func (ks *MongoStore) dequeueSenzByReceiver(receiver string) []Senz {
     }
 
     // senz id to delete
-    //var dSenzes []string
-    //for _, z := range qSenzes {
-    //  dSenzes = append(dSenzes, z.Uid)
-    //}
+    var dSenzes []string
+    for _, z := range qSenzes {
+      dSenzes = append(dSenzes, z.Uid)
+    }
 
     // then remove all
-    //_, rErr := coll.RemoveAll(bson.M{"uid": bson.M{"$in": dSenzes}})
-	//if rErr != nil {
-    //    fmt.Println("Error remove key: ", rErr.Error())
-	//}
+    _, rErr := coll.RemoveAll(bson.M{"uid": bson.M{"$in": dSenzes}})
+	if rErr != nil {
+        fmt.Println("Error remove key: ", rErr.Error())
+	}
 
     return qSenzes
 }
