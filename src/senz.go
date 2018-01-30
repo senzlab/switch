@@ -225,7 +225,7 @@ func writing(senzie *Senzie)  {
             break WRITER
         case senz := <-senzie.out:
             // enqueu senz (except AWA, GIYA senz)
-            if (senz.Ztype != "AWA" || senz.Ztype != "GIYA") {
+            if (senz.Ztype != "AWA" && senz.Ztype != "GIYA") {
                 mongoStore.enqueueSenz(senz)
             }
 

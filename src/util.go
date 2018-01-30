@@ -84,6 +84,7 @@ func regSenz(uid string, status string, to string)Senz {
     sm := z + " " + s
 
     sz := Senz{}
+    sz.Ztype = "DATA"
     sz.Uid = uid
     sz.Msg = sm
     sz.Sender = config.switchName
@@ -102,6 +103,7 @@ func keySenz(uid string, key string, name string, to string)Senz {
     sm := z + " " + s
 
     sz := Senz{}
+    sz.Ztype = "DATA"
     sz.Uid = uid
     sz.Msg = sm
     sz.Sender = config.switchName
@@ -118,6 +120,7 @@ func awaSenz(uid string, to string)Senz {
     sm := z + " " + s
 
     sz := Senz{}
+    sz.Ztype = "AWA"
     sz.Uid = uid
     sz.Msg = sm
     sz.Sender = config.switchName
@@ -134,6 +137,7 @@ func giyaSenz(uid string, to string)Senz {
     sm := z + " " + s
 
     sz := Senz{}
+    sz.Ztype = "GIYA"
     sz.Uid = uid
     sz.Msg = sm
     sz.Sender = config.switchName
