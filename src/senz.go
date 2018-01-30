@@ -244,7 +244,7 @@ func writing(senzie *Senzie)  {
             senzie.tik.Stop()
             break WRITER
         case senz := <-senzie.out:
-            // enqueu senz, except AWA, GIYA senz and broadcase senz(receiver="*") 
+            // enqueu senz, except AWA, GIYA and broadcase senz(receiver="*") 
             if (senz.Ztype != "AWA" && senz.Ztype != "GIYA" && senz.Receiver != "*") {
                 mongoStore.enqueueSenz(senz)
             }
