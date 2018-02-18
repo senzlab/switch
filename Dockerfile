@@ -6,9 +6,10 @@ MAINTAINER Eranga Bandara (erangaeb@gmail.com)
 RUN go get gopkg.in/mgo.v2
 
 # env
-ENV SWITCH_MODE DEV
-ENV SWITCH_NAME senzswitch
-ENV SWITCH_PORT 7070
+ENV ZWITCH_MODE DEV
+ENV ZWITCH_NAME senzswitch
+ENV ZWITCH_PORT 7070
+ENV DOT_KEYS .keys
 ENV MONGO_HOST dev.localhost
 ENV MONGO_PORT 27017
 
