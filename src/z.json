@@ -1,0 +1,11 @@
+{
+   "id": "<transaction UUID>",
+   "timestamp": "<transaction timestamp>",
+   "creator": "<transaction creator>",
+   "signature": "<digital signature of creator>",
+   "client_id": "<client id who involved with print job>",
+   "design_provider_id": "<design provider id who involved with print jbo>",
+   "print_agent_id": "<print agent id who involved with print jbo>",
+   "print_job_id": "<pring job id>",
+   "print_job_action": "<print job action>"
+}
