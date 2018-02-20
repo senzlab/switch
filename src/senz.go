@@ -87,24 +87,27 @@ func main() {
 }
 
 func reading(senzie *Senzie) {
-    reader := bufio.NewReader(senzie.conn)
+    //reader := bufio.NewReader(senzie.conn)
+    scanner := bufio.NewScanner(senzie.conn)
+    scanner.Split(scanSemiColon)
 
     // read senz
     READER:
-    for {
-        msg, err := reader.ReadString(';')
-        if err != nil {
-            fmt.Println("Error reading: ", err.Error())
+    for scanner.Scan() {
+        //msg, err := reader.ReadString(';')
+        msg := scanner.Text()
+        //if err != nil {
+        //    fmt.Println("Error reading: ", err.Error())
 
             // quit all routeins of this senzie
-            senzie.quit <- true
-            break READER
-        }
+        //    senzie.quit <- true
+        //    break READER
+        //}
 
-        println("received " + msg + "from " + senzie.name)
+        println(msg)
 
         // not handle TAK, TIK, TUK
-        if(msg == "TAK;" || msg == "TIK;" || msg == "TUK;") {
+        if(msg == "TAK" || msg == "TIK" || msg == "TUK") {
             continue READER
         }
 
@@ -220,6 +223,9 @@ func reading(senzie *Senzie) {
             }
         }
     }
+
+    // end reading
+    senzie.quit <- true
 }
 
 func dispatching(senzie *Senzie) {
