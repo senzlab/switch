@@ -33,6 +33,9 @@ type Senz struct {
 var senzies = map[string]*Senzie{}
 var mongoStore = &MongoStore{}
 
+// max capacity of buffer
+const maxCapacity = 128*1024
+
 func main() {
     // first init key pair
     setUpKeys()
@@ -88,6 +91,8 @@ func main() {
 
 func reading(senzie *Senzie) {
     scanner := bufio.NewScanner(senzie.conn)
+    buf := make([]byte, maxCapacity)
+    scanner.Buffer(buf, maxCapacity)
     scanner.Split(scanSemiColon)
 
     // read senz
