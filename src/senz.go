@@ -29,6 +29,14 @@ type Senz struct {
     Digsig      string
 }
 
+// constants
+// 1. buffer size
+// 2. socket read timeout
+// 3. ticking interval
+const bufSize = 16 * 1024
+const readTimeout = 5 * time.Minute
+const tikInterval = 60 * time.Second 
+
 // keep connected senzies
 var senzies = map[string]*Senzie{}
 var mongoStore = &MongoStore{}
@@ -71,13 +79,13 @@ func main() {
         }
 
         // enable keep alive
-	    conn.(*net.TCPConn).SetKeepAlive(true)
+	    //conn.(*net.TCPConn).SetKeepAlive(true)
 
         // new senzie
         senzie := &Senzie {
             out: make(chan Senz),
             quit: make(chan bool),
-            tik: time.NewTicker(60 * time.Second),
+            tik: time.NewTicker(tickInterval),
             conn: conn,
         }
 
@@ -87,7 +95,7 @@ func main() {
 }
 
 func reading(senzie *Senzie) {
-    reader := bufio.NewReader(senzie.conn)
+    reader := bufio.NewReaderSize(senzie.conn, bufSize)
 
     // read senz
     READER:
@@ -96,10 +104,11 @@ func reading(senzie *Senzie) {
         if err != nil {
             fmt.Println("Error reading: ", err.Error())
 
-            // quit all routeins of this senzie
-            senzie.quit <- true
             break READER
         }
+
+        // set read deadline to detect dead peers
+	    senzie.conn.SetReadDeadline(time.Now().Add(readTimeout))
 
         println("received " + msg + "from " + senzie.name)
 
@@ -182,7 +191,6 @@ func reading(senzie *Senzie) {
             err := verify(payload, senz.Digsig, senzieKey)
             if err != nil {
                 println("cannot verify signarue, so dorp the conneciton")
-                senzie.quit <- true
                 break READER
             }
 
@@ -204,7 +212,6 @@ func reading(senzie *Senzie) {
             err := verify(payload, senz.Digsig, senzieKey)
             if err != nil {
                 println("cannot verify signarue, so dorp the conneciton")
-                senzie.quit <- true
                 break READER
             }
 
@@ -220,6 +227,11 @@ func reading(senzie *Senzie) {
             }
         }
     }
+
+    println("exit reader...")
+
+    // quit all routeins of this senzie
+    senzie.quit <- true
 }
 
 func dispatching(senzie *Senzie) {
@@ -233,7 +245,7 @@ func dispatching(senzie *Senzie) {
 }
 
 func writing(senzie *Senzie)  {
-    writer := bufio.NewWriter(senzie.conn)
+    writer := bufio.NewWriterSize(senzie.conn, bufSize)
 
     // write
     WRITER:
