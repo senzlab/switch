@@ -35,7 +35,7 @@ type Senz struct {
 // 3. ticking interval
 const bufSize = 16 * 1024
 const readTimeout = 5 * time.Minute
-const tikInterval = 60 * time.Second 
+const tikInterval = 60 * time.Second
 
 // keep connected senzies
 var senzies = map[string]*Senzie{}
@@ -85,7 +85,7 @@ func main() {
         senzie := &Senzie {
             out: make(chan Senz),
             quit: make(chan bool),
-            tik: time.NewTicker(tickInterval),
+            tik: time.NewTicker(tikInterval),
             conn: conn,
         }
 
