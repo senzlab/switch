@@ -12,10 +12,11 @@ import (
 
 type Senzie struct {
     name        string
-    id          string
 	out         chan Senz
     quit        chan bool
     tik         *time.Ticker
+    reader      *bufio.Reader
+    writer      *bufio.Writer
     conn        net.Conn
 }
 
@@ -70,12 +71,13 @@ func main() {
     session.SetMode(mgo.Monotonic, true)
     mongoStore.session = session
 
+    LISTENER:
     for {
         // handle new connections
         conn, err := l.Accept()
         if err != nil {
             fmt.Println("Error accepting: ", err.Error())
-            os.Exit(1)
+            continue LISTENER
         }
 
         // enable keep alive
@@ -85,22 +87,91 @@ func main() {
         senzie := &Senzie {
             out: make(chan Senz),
             quit: make(chan bool),
-            tik: time.NewTicker(tikInterval),
+            reader: bufio.NewReaderSize(conn, bufSize),
+            writer: bufio.NewWriterSize(conn, bufSize),
             conn: conn,
         }
 
+        go registering(senzie)
+    }
+}
+
+func registering(senzie *Senzie) {
+    // listen for reg senz
+    msg, err := senzie.reader.ReadString(';')
+    if err != nil {
+        fmt.Println("Error reading: ", err.Error())
+
+        senzie.conn.Close()
+    }
+
+    println("received " + msg)
+
+    // get pubkey
+    senz := parse(msg)
+    senzie.name = senz.Sender
+    pubkey := senz.Attr["pubkey"]
+    key := mongoStore.getKey(senzie.name)
+
+    // check for reg
+    if(key.Value == "") {
+        // not registerd senzie
+        // save pubkey
+        // add senzie
+        mongoStore.putKey(&Key{senzie.name, pubkey})
+        senzies[senzie.name] = senzie
+
+        // start ticking
+        // start reading
+        // start writing
+        senzie.tik = time.NewTicker(tikInterval)
         go reading(senzie)
         go writing(senzie)
+
+        // send status
+        uid := senz.Attr["uid"]
+        senzie.out <- regSenz(uid, "REG_DONE", senzie.name)
+    } else if(key.Value == pubkey) {
+        // already registerd senzie
+        // close existing senzie's conn
+        // delete existing senzie
+        // then add new senzie
+        if senzies[senzie.name] != nil {
+            senzies[senzie.name].conn.Close()
+            delete(senzies, senzie.name)
+        }
+        senzies[senzie.name] = senzie
+
+        // start ticking
+        // start reading
+        // start writing
+        senzie.tik = time.NewTicker(tikInterval)
+        go reading(senzie)
+        go writing(senzie)
+
+        // send status
+        uid := senz.Attr["uid"]
+        senzie.out <- regSenz(uid, "REG_ALR", senzie.name)
+
+        // dispatch queued messages of senzie
+        go dispatching(senzie)
+    } else {
+        // name already obtained
+        // send status
+        uid := senz.Attr["uid"]
+        senz := regSenz(uid, "REG_FAIL", senzie.name)
+
+        // write
+        senzie.writer.WriteString(senz.Msg + ";")
+        senzie.writer.Flush()
     }
 }
 
 func reading(senzie *Senzie) {
-    reader := bufio.NewReaderSize(senzie.conn, bufSize)
-
     // read senz
     READER:
     for {
-        msg, err := reader.ReadString(';')
+        msg, err := senzie.reader.ReadString(';')
         if err != nil {
             fmt.Println("Error reading: ", err.Error())
 
@@ -110,7 +181,7 @@ func reading(senzie *Senzie) {
         // set read deadline to detect dead peers
 	    senzie.conn.SetReadDeadline(time.Now().Add(readTimeout))
 
-        println("received " + msg + "from " + senzie.name)
+        println("received " + msg)
 
         // not handle TAK, TIK, TUK
         if(msg == "TAK;" || msg == "TIK;" || msg == "TUK;") {
@@ -120,50 +191,7 @@ func reading(senzie *Senzie) {
         // parse senz and handle it
         senz := parse(msg)
         if(senz.Receiver == config.switchName) {
-            if(senz.Ztype == "SHARE") {
-                // this is shareing pub key(registration)
-                // save pubkey in db
-                senzie.name = senz.Sender
-                senzie.id = senz.Attr["uid"]
-                pubkey := senz.Attr["pubkey"]
-                key := mongoStore.getKey(senzie.name)
-
-                println("SHARE pubKey to switch " + senzie.name + " " + senzie.id)
-
-                if(key.Value == "") {
-                    // not registerd senzie
-                    // save pubkey
-                    // add senzie
-                    mongoStore.putKey(&Key{senzie.name, pubkey})
-                    senzies[senzie.name] = senzie
-
-                    // send status
-                    uid := senz.Attr["uid"]
-                    senzie.out <- regSenz(uid, "REG_DONE", senzie.name)
-                } else if(key.Value == pubkey) {
-                    // already registerd senzie
-                    // close existing senzie's conn
-                    // delete existing senzie first
-                    // then add new senzie
-                    if senzies[senzie.name] != nil {
-                        senzies[senzie.name].conn.Close()
-                        delete(senzies, senzie.name)
-                    }
-                    senzies[senzie.name] = senzie
-
-                    // send status
-                    uid := senz.Attr["uid"]
-                    senzie.out <- regSenz(uid, "REG_ALR", senzie.name) 
-
-                    // dispatch queued messages of senzie
-                    go dispatching(senzie)
-                } else {
-                    // name already obtained
-                    // send status
-                    uid := senz.Attr["uid"]
-                    senzie.out <- regSenz(uid, "REG_FAIL", senzie.name)
-                }
-            } else if(senz.Ztype == "GET") {
+            if(senz.Ztype == "GET") {
                 // this is requesting pub key of other senzie
                 // fing pubkey and send
                 key := mongoStore.getKey(senz.Attr["name"])
@@ -231,12 +259,16 @@ func reading(senzie *Senzie) {
     println("exit reader...")
 
     // quit all routeins of this senzie
+    // close conn
     senzie.quit <- true
+    senzie.conn.Close()
 }
 
 func dispatching(senzie *Senzie) {
     // find queued messages from mongo store
     var zs = mongoStore.dequeueSenzByReceiver(senzie.name)
+
+    fmt.Println("despatching ... ", len(zs))
 
     // dispatch queued messages to senzie
     for _, z := range zs {
@@ -245,14 +277,12 @@ func dispatching(senzie *Senzie) {
 }
 
 func writing(senzie *Senzie)  {
-    writer := bufio.NewWriterSize(senzie.conn, bufSize)
-
     // write
     WRITER:
     for {
         select {
         case <- senzie.quit:
-            println("quiting/write/tick -- " + senzie.id)
+            println("quiting/write/tick -- " + senzie.name)
             senzie.tik.Stop()
             break WRITER
         case senz := <-senzie.out:
@@ -261,12 +291,12 @@ func writing(senzie *Senzie)  {
                 mongoStore.enqueueSenz(senz)
             }
 
-            writer.WriteString(senz.Msg + ";")
-            writer.Flush()
+            senzie.writer.WriteString(senz.Msg + ";")
+            senzie.writer.Flush()
         case <-senzie.tik.C:
-            println("ticking -- " + senzie.id)
-            writer.WriteString("TIK;")
-            writer.Flush()
+            println("ticking -- " + senzie.name)
+            senzie.writer.WriteString("TIK;")
+            senzie.writer.Flush()
         }
     }
 }
