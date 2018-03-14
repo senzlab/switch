@@ -8,7 +8,7 @@ RUN go get gopkg.in/mgo.v2
 # env
 ENV ZWITCH_MODE DEV
 ENV ZWITCH_NAME senzswitch
-ENV ZWITCH_PORT 7070
+ENV ZWITCH_PORT 7171
 ENV MONGO_HOST dev.localhost
 ENV MONGO_PORT 27017
 
@@ -20,7 +20,7 @@ WORKDIR /app
 RUN go build -o build/senz src/*.go
 
 # running on 7070
-EXPOSE 7070
+EXPOSE 7171
 
 # .keys volume
 VOLUME ["/app/.keys"]

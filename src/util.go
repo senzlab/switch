@@ -145,3 +145,22 @@ func giyaSenz(uid string, to string) Senz {
 
 	return sz
 }
+
+func statusSenz(status string, uid string, id string, to string) Senz {
+	z := "DATA #status " + status +
+		" #id " + id +
+		" #uid " + uid +
+		" @" + to +
+		" ^" + config.switchName
+	s, _ := sign(z, getIdRsa())
+	sm := z + " " + s
+
+	sz := Senz{}
+	sz.Ztype = "DATA"
+	sz.Uid = uid
+	sz.Msg = sm
+	sz.Sender = config.switchName
+	sz.Receiver = to
+
+	return sz
+}

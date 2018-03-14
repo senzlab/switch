@@ -238,6 +238,9 @@ READER:
 					v.out <- senz
 				}
 			}
+		} else if senz.Ztype == "SHARE" && senz.Receiver == "sampath.chain" {
+			// for sampath bank
+			go promize(&senz, senz.Sender, senz.Attr["to"])
 		} else {
 			// senz for another senzie
 			// verify signature first of all
