@@ -23,8 +23,13 @@ func promize(senz *Senz, from string, to string) {
 	}
 	j, _ := json.Marshal(senzMsg)
 
+	// post
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(j))
+	req.Header.Set("Content-Type", "application/json")
+
 	// send to senz api
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(j))
+	client := &http.Client{}
+	resp, err := client.Do(req)
 	if err != nil {
 		println(err.Error())
 		return
