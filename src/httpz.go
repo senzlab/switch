@@ -2,47 +2,71 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"io/ioutil"
 	"net/http"
 )
+
+type SenzMsg struct {
+	Uid string
+	Msg string
+}
 
 func promize(senz *Senz, from string, to string) {
 	url := "http://" + chainzConfig.host + ":" + chainzConfig.port + "/promize"
 
 	println("sending request " + url)
+	// marshel senz
+	senzMsg := SenzMsg{
+		Uid: senz.Attr["uid"],
+		Msg: senz.Msg,
+	}
+	j, _ := json.Marshal(senzMsg)
 
-	body := []byte(senz.Msg)
-	resp, err := http.Post(url, "text/plain", bytes.NewBuffer(body))
+	// send to senz api
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(j))
 	if err != nil {
 		println(err.Error())
 		return
 	}
 	defer resp.Body.Close()
 
-	// send
-
 	println(resp.Status + "---")
 
 	// handle response
 	if resp.StatusCode == 201 {
 		// means promize created
-		msg, _ := ioutil.ReadAll(resp.Body)
-		z := parse(string(msg))
+		b, _ := ioutil.ReadAll(resp.Body)
 
-		// send status to zfrom
-		senzies[from].out <- statusSenz("SUCCESS", z.Attr["uid"], z.Attr["id"], from)
+		println(string(b))
 
-		// send response to zto
-		senzies[to].out <- z
-		println(string(msg))
+		// unmarshel senz response
+		var zmsgs []SenzMsg
+		json.Unmarshal(b, &zmsgs)
+
+		// iterate over each and every msg and process it
+		for _, zmsg := range zmsgs {
+			z := parse(string(zmsg.Msg))
+			// TODO check senzie exists
+			senzies[z.Receiver].out <- z
+		}
 	} else if resp.StatusCode == 200 {
 		// premize redeemed
 		// send response to zfrom
-		msg, _ := ioutil.ReadAll(resp.Body)
-		z := parse(string(msg))
-		senzies[from].out <- z
+		b, _ := ioutil.ReadAll(resp.Body)
 
-		println(string(msg))
+		println(string(b))
+
+		// unmarshel senz response
+		var zmsgs []SenzMsg
+		json.Unmarshal(b, &zmsgs)
+
+		// iterate over each and every msg and process it
+		for _, zmsg := range zmsgs {
+			z := parse(string(zmsg.Msg))
+			// TODO check senzie exists
+			senzies[z.Receiver].out <- z
+		}
 	} else {
 		// means promize fail
 		// send response to zfrom
