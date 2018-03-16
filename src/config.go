@@ -16,11 +16,7 @@ type Config struct {
 	dotKeys    string
 	idRsa      string
 	idRsaPub   string
-}
-
-type ChainzConfig struct {
-	host string
-	port string
+	chainzApi  string
 }
 
 var config = Config{
@@ -35,11 +31,7 @@ var config = Config{
 	dotKeys:    ".keys",
 	idRsa:      ".keys/id_rsa",
 	idRsaPub:   ".keys/id_rsa.pub",
-}
-
-var chainzConfig = ChainzConfig{
-	host: getEnv("CHAINZ_HOST", "dev.localhost"),
-	port: getEnv("CHAINZ_PORT", "7070"),
+	chainzApi:  getEnv("CHAINZ_API", "https://chainz.com:8443/promize"),
 }
 
 func getEnv(key, fallback string) string {

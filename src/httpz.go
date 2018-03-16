@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
@@ -13,9 +15,32 @@ type SenzMsg struct {
 }
 
 func promize(senz *Senz, from string, to string) {
-	url := "http://" + chainzConfig.host + ":" + chainzConfig.port + "/promize"
+	println("sending request " + config.chainzApi)
 
-	println("sending request " + url)
+	// load client cert
+	cert, err := tls.LoadX509KeyPair(".certs/client.crt", ".certs/client.key")
+	if err != nil {
+		println(err.Error())
+	}
+
+	// load CA cert
+	caCert, err := ioutil.ReadFile(".certs/ca.crt")
+	if err != nil {
+		println(err.Error())
+	}
+	caCertPool := x509.NewCertPool()
+	caCertPool.AppendCertsFromPEM(caCert)
+
+	// https client tls config
+	// InsecureSkipVerify true means not validate server certificate (so no need to set RootCAs)
+	tlsConfig := &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		//RootCAs:            caCertPool,
+		InsecureSkipVerify: true,
+	}
+	tlsConfig.BuildNameToCertificate()
+	transport := &http.Transport{TLSClientConfig: tlsConfig}
+
 	// marshel senz
 	senzMsg := SenzMsg{
 		Uid: senz.Attr["uid"],
@@ -23,12 +48,12 @@ func promize(senz *Senz, from string, to string) {
 	}
 	j, _ := json.Marshal(senzMsg)
 
-	// post
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(j))
+	// post request
+	req, err := http.NewRequest("POST", config.chainzApi, bytes.NewBuffer(j))
 	req.Header.Set("Content-Type", "application/json")
 
 	// send to senz api
-	client := &http.Client{}
+	client := &http.Client{Transport: transport}
 	resp, err := client.Do(req)
 	if err != nil {
 		println(err.Error())
