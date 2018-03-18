@@ -14,8 +14,8 @@ type SenzMsg struct {
 	Msg string
 }
 
-func promize(senz *Senz, from string, to string) {
-	println("sending request " + config.chainzApi)
+func promize(senz *Senz) {
+	println("sending request " + config.promizeApi)
 
 	// load client cert
 	cert, err := tls.LoadX509KeyPair(".certs/client.crt", ".certs/client.key")
@@ -49,7 +49,14 @@ func promize(senz *Senz, from string, to string) {
 	j, _ := json.Marshal(senzMsg)
 
 	// post request
-	req, err := http.NewRequest("POST", config.chainzApi, bytes.NewBuffer(j))
+	var api string
+	if _, ok := senz.Attr["blob"]; ok {
+		api = config.promizeApi
+	} else {
+		api = config.userApi
+	}
+
+	req, err := http.NewRequest("POST", api, bytes.NewBuffer(j))
 	req.Header.Set("Content-Type", "application/json")
 
 	// send to senz api
@@ -61,49 +68,17 @@ func promize(senz *Senz, from string, to string) {
 	}
 	defer resp.Body.Close()
 
-	println(resp.Status + "---")
+	b, _ := ioutil.ReadAll(resp.Body)
+	println(string(b))
 
-	// handle response
-	if resp.StatusCode == 201 {
-		// means promize created
-		b, _ := ioutil.ReadAll(resp.Body)
+	// unmarshel senz response
+	var zmsgs []SenzMsg
+	json.Unmarshal(b, &zmsgs)
 
-		println(string(b))
-
-		// unmarshel senz response
-		var zmsgs []SenzMsg
-		json.Unmarshal(b, &zmsgs)
-
-		// iterate over each and every msg and process it
-		for _, zmsg := range zmsgs {
-			z := parse(string(zmsg.Msg))
-			// TODO check senzie exists
-			senzies[z.Receiver].out <- z
-		}
-	} else if resp.StatusCode == 200 {
-		// premize redeemed
-		// send response to zfrom
-		b, _ := ioutil.ReadAll(resp.Body)
-
-		println(string(b))
-
-		// unmarshel senz response
-		var zmsgs []SenzMsg
-		json.Unmarshal(b, &zmsgs)
-
-		// iterate over each and every msg and process it
-		for _, zmsg := range zmsgs {
-			z := parse(string(zmsg.Msg))
-			// TODO check senzie exists
-			senzies[z.Receiver].out <- z
-		}
-	} else {
-		// means promize fail
-		// send response to zfrom
-		msg, _ := ioutil.ReadAll(resp.Body)
-		z := parse(string(msg))
-		senzies[from].out <- z
-
-		println(string(msg))
+	// iterate over each and every msg and process it
+	for _, zmsg := range zmsgs {
+		z := parse(string(zmsg.Msg))
+		// TODO check senzie exists
+		senzies[z.Receiver].out <- z
 	}
 }

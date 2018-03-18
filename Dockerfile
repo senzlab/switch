@@ -11,7 +11,8 @@ ENV ZWITCH_NAME senzswitch
 ENV ZWITCH_PORT 7171
 ENV MONGO_HOST dev.localhost
 ENV MONGO_PORT 27017
-ENV CHAINZ_API https://chainz.com:8443/promize
+ENV PROMIZE_API https://chainz.com:8443/promizes
+ENV USER_API https://chainz.com:8443/users
 
 # copy app
 ADD . /app
