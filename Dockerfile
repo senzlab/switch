@@ -12,7 +12,7 @@ ENV ZWITCH_PORT 7171
 ENV MONGO_HOST dev.localhost
 ENV MONGO_PORT 27017
 ENV PROMIZE_API https://chainz.com:8443/promizes
-ENV USER_API https://chainz.com:8443/users
+ENV UZER_API https://chainz.com:8443/uzers
 
 # copy app
 ADD . /app

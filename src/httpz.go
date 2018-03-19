@@ -15,7 +15,6 @@ type SenzMsg struct {
 }
 
 func promize(senz *Senz) {
-	println("sending request " + config.promizeApi)
 
 	// load client cert
 	cert, err := tls.LoadX509KeyPair(".certs/client.crt", ".certs/client.key")
@@ -53,8 +52,10 @@ func promize(senz *Senz) {
 	if _, ok := senz.Attr["blob"]; ok {
 		api = config.promizeApi
 	} else {
-		api = config.userApi
+		api = config.uzerApi
 	}
+
+	println("sending request " + api)
 
 	req, err := http.NewRequest("POST", api, bytes.NewBuffer(j))
 	req.Header.Set("Content-Type", "application/json")

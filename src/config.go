@@ -17,7 +17,7 @@ type Config struct {
 	idRsa      string
 	idRsaPub   string
 	promizeApi string
-	userApi    string
+	uzerApi    string
 }
 
 var config = Config{
@@ -33,7 +33,7 @@ var config = Config{
 	idRsa:      ".keys/id_rsa",
 	idRsaPub:   ".keys/id_rsa.pub",
 	promizeApi: getEnv("PROMIZE_API", "https://chainz.com:8443/promizes"),
-	userApi:    getEnv("USER_API", "https://chainz.com:8443/users"),
+	uzerApi:    getEnv("UZER_API", "https://chainz.com:8443/uzers"),
 }
 
 func getEnv(key, fallback string) string {
