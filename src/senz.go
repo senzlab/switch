@@ -36,7 +36,7 @@ type Senz struct {
 // 3. ticking interval
 const (
 	bufSize     = 16 * 1024
-	readTimeout = 5 * time.Minute
+	readTimeout = 30 * time.Minute
 	tikInterval = 60 * time.Second
 )
 
