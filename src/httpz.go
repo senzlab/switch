@@ -79,7 +79,14 @@ func promize(senz *Senz) {
 	// iterate over each and every msg and process it
 	for _, zmsg := range zmsgs {
 		z := parse(string(zmsg.Msg))
-		// TODO check senzie exists
-		senzies[z.Receiver].out <- z
+
+		// check senzie exists
+		if senzies[dz.Sender] != nil {
+			senzies[z.Receiver].out <- z
+		} else {
+			// no senzie to send httpz senz, so enqueu senz
+			println("no senzie to send httpz senz:" + z.Receiver)
+			mongoStore.enqueueSenz(z)
+		}
 	}
 }

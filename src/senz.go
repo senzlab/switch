@@ -214,7 +214,9 @@ READER:
 				if senzies[dz.Sender] != nil {
 					senzies[dz.Sender].out <- giyaSenz(uid, senzie.name)
 				} else {
+					// no senzie to forward senz, so enqueu it
 					fmt.Println("no senzie to send giya: " + senz.Receiver)
+					mongoStore.enqueueSenz(senz)
 				}
 			}
 		} else if senz.Receiver == "*" {
@@ -260,7 +262,9 @@ READER:
 			if senzies[senz.Receiver] != nil {
 				senzies[senz.Receiver].out <- senz
 			} else {
+				// no senzie to forward senz, so enqueu it
 				fmt.Println("no senzie to forward senz: ", senz.Receiver, " :"+senz.Msg)
+				mongoStore.enqueueSenz(senz)
 			}
 		}
 	}
