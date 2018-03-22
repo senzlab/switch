@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"gopkg.in/mgo.v2"
 	"net"
-	"os"
 	"strings"
 	"time"
 )
@@ -53,41 +52,36 @@ func main() {
 	setUpKeys()
 
 	// listen for incoming conns
-	l, err := net.Listen("tcp", ":"+config.switchPort)
+	listener, err := net.Listen("tcp", ":"+config.switchPort)
 	if err != nil {
 		fmt.Println("Error listening:", err.Error())
-		os.Exit(1)
+		return
 	}
-
-	// close listern on app closes
-	defer l.Close()
-
-	fmt.Println("Listening on " + config.switchPort)
+	defer listener.Close()
 
 	// db setup
 	session, err := mgo.Dial(config.mongoHost)
 	if err != nil {
 		fmt.Println("Error connecting mongo: ", err.Error())
-		os.Exit(1)
+		return
 	}
-
-	// close session on app closes
 	defer session.Close()
-
 	session.SetMode(mgo.Monotonic, true)
 	mongoStore.session = session
 
+	// listeneing
+	listening(listener)
+}
+
+func listening(listener net.Listener) {
 LISTENER:
 	for {
 		// handle new connections
-		conn, err := l.Accept()
+		conn, err := listener.Accept()
 		if err != nil {
 			fmt.Println("Error accepting: ", err.Error())
 			continue LISTENER
 		}
-
-		// enable keep alive
-		//conn.(*net.TCPConn).SetKeepAlive(true)
 
 		// new senzie
 		senzie := &Senzie{
@@ -107,7 +101,6 @@ func registering(senzie *Senzie) {
 	msg, err := senzie.reader.ReadString(';')
 	if err != nil {
 		fmt.Println("Error reading: ", err.Error())
-
 		senzie.conn.Close()
 	}
 
@@ -174,20 +167,16 @@ func registering(senzie *Senzie) {
 }
 
 func reading(senzie *Senzie) {
-	// read senz
 READER:
 	for {
 		msg, err := senzie.reader.ReadString(';')
 		if err != nil {
 			fmt.Println("Error reading: ", err.Error())
-
 			break READER
 		}
 
 		// set read deadline to detect dead peers
 		senzie.conn.SetReadDeadline(time.Now().Add(readTimeout))
-
-		println("received " + msg)
 
 		// not handle TAK, TIK, TUK
 		if msg == "TAK;" || msg == "TIK;" || msg == "TUK;" {
@@ -196,6 +185,16 @@ READER:
 
 		// parse senz and handle it
 		senz := parse(msg)
+
+		// verify signature first of all
+		payload := strings.Replace(senz.Msg, senz.Digsig, "", -1)
+		senzieKey := getSenzieRsaPub(mongoStore.getKey(senzie.name).Value)
+		err = verify(payload, senz.Digsig, senzieKey)
+		if err != nil {
+			println("cannot verify signarue, so dorp the conneciton")
+			break READER
+		}
+
 		if senz.Receiver == config.switchName {
 			if senz.Ztype == "GET" {
 				// this is requesting pub key of other senzie
@@ -219,41 +218,10 @@ READER:
 					mongoStore.enqueueSenz(senz)
 				}
 			}
-		} else if senz.Receiver == "*" {
-			// broadcase senz
-			// verify signature first of all
-			payload := strings.Replace(senz.Msg, senz.Digsig, "", -1)
-			senzieKey := getSenzieRsaPub(mongoStore.getKey(senzie.name).Value)
-			err := verify(payload, senz.Digsig, senzieKey)
-			if err != nil {
-				println("cannot verify signarue, so dorp the conneciton")
-				break READER
-			}
-
-			// send AWA back to sender
-			uid := senz.Attr["uid"]
-			senzie.out <- awaSenz(uid, senzie.name)
-
-			// broadcast
-			for k, v := range senzies {
-				if k != senz.Sender {
-					v.out <- senz
-				}
-			}
 		} else if senz.Ztype == "SHARE" && senz.Receiver == "sampath.chain" {
 			// for sampath bank
 			go promize(&senz)
 		} else {
-			// senz for another senzie
-			// verify signature first of all
-			payload := strings.Replace(senz.Msg, senz.Digsig, "", -1)
-			senzieKey := getSenzieRsaPub(mongoStore.getKey(senzie.name).Value)
-			err := verify(payload, senz.Digsig, senzieKey)
-			if err != nil {
-				println("cannot verify signarue, so dorp the conneciton")
-				break READER
-			}
-
 			// send AWA back to sender
 			uid := senz.Attr["uid"]
 			senzie.out <- awaSenz(uid, senzie.name)
@@ -277,20 +245,7 @@ READER:
 	senzie.conn.Close()
 }
 
-func dispatching(senzie *Senzie) {
-	// find queued messages from mongo store
-	var zs = mongoStore.dequeueSenzByReceiver(senzie.name)
-
-	fmt.Println("despatching ... ", len(zs))
-
-	// dispatch queued messages to senzie
-	for _, z := range zs {
-		senzie.out <- z
-	}
-}
-
 func writing(senzie *Senzie) {
-	// write
 WRITER:
 	for {
 		select {
@@ -311,5 +266,17 @@ WRITER:
 			senzie.writer.WriteString("TIK;")
 			senzie.writer.Flush()
 		}
+	}
+}
+
+func dispatching(senzie *Senzie) {
+	// find queued messages from mongo store
+	var zs = mongoStore.dequeueSenzByReceiver(senzie.name)
+
+	fmt.Println("despatching ... ", len(zs))
+
+	// dispatch queued messages to senzie
+	for _, z := range zs {
+		senzie.out <- z
 	}
 }
