@@ -81,7 +81,7 @@ func promize(senz *Senz) {
 		z := parse(string(zmsg.Msg))
 
 		// check senzie exists
-		if senzies[z.Sender] != nil {
+		if senzies[z.Receiver] != nil {
 			senzies[z.Receiver].out <- z
 		} else {
 			// no senzie to send httpz senz, so enqueu senz
