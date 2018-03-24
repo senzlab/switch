@@ -84,9 +84,8 @@ func promize(senz *Senz) {
 		if senzies[z.Receiver] != nil {
 			senzies[z.Receiver].out <- z
 		} else {
-			// no senzie to send httpz senz, so enqueu senz
-			println("no senzie to send httpz senz:" + z.Receiver)
-			mongoStore.enqueueSenz(z)
+			println("no senzie to send httpz senz, enqueued " + z.Msg)
+			mongoStore.enqueueSenz(&z)
 		}
 	}
 }

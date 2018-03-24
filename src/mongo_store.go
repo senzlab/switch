@@ -34,13 +34,13 @@ func (ks *MongoStore) getKey(name string) *Key {
 	key := &Key{}
 	err := coll.Find(bson.M{"name": name}).One(key)
 	if err != nil {
-		fmt.Println("Error get key: ", err.Error(), ": "+name)
+		fmt.Println("key not found: ", err.Error(), ": "+name)
 	}
 
 	return key
 }
 
-func (ks *MongoStore) enqueueSenz(qSenz Senz) {
+func (ks *MongoStore) enqueueSenz(qSenz *Senz) {
 	sessionCopy := ks.session.Copy()
 	defer sessionCopy.Close()
 
@@ -85,7 +85,7 @@ func (ks *MongoStore) dequeueSenzByReceiver(receiver string) []Senz {
 	var qSenzes []Senz
 	gErr := coll.Find(bson.M{"receiver": receiver}).All(&qSenzes)
 	if gErr != nil {
-		fmt.Println("Error get senz: ", gErr.Error())
+		fmt.Println("Error deque senz: ", gErr.Error())
 	}
 
 	// senz id to delete

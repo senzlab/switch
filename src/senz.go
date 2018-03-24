@@ -120,16 +120,17 @@ func registering(senzie *Senzie) {
 		mongoStore.putKey(&Key{senzie.name, pubkey})
 		senzies[senzie.name] = senzie
 
+		// send status
+		sz := regSenz(senz.Attr["uid"], "REG_DONE", senzie.name)
+		senzie.writer.WriteString(sz.Msg + ";")
+		senzie.writer.Flush()
+
 		// start ticking
 		// start reading
 		// start writing
 		senzie.tik = time.NewTicker(tikInterval)
 		go reading(senzie)
 		go writing(senzie)
-
-		// send status
-		uid := senz.Attr["uid"]
-		senzie.out <- regSenz(uid, "REG_DONE", senzie.name)
 	} else if key.Value == pubkey {
 		// already registerd senzie
 		// close existing senzie's conn
@@ -141,18 +142,18 @@ func registering(senzie *Senzie) {
 		}
 		senzies[senzie.name] = senzie
 
+		// send status
+		sz := regSenz(senz.Attr["uid"], "REG_ALR", senzie.name)
+		senzie.writer.WriteString(sz.Msg + ";")
+		senzie.writer.Flush()
+
 		// start ticking
 		// start reading
 		// start writing
+		// dispatch queued messages of senzie
 		senzie.tik = time.NewTicker(tikInterval)
 		go reading(senzie)
 		go writing(senzie)
-
-		// send status
-		uid := senz.Attr["uid"]
-		senzie.out <- regSenz(uid, "REG_ALR", senzie.name)
-
-		// dispatch queued messages of senzie
 		go dispatching(senzie)
 	} else {
 		// name already obtained
@@ -208,14 +209,17 @@ READER:
 				// get senz with given uid
 				uid := senz.Attr["uid"]
 				var dz = mongoStore.dequeueSenzById(uid)
+				if dz.Ztype == "" {
+					continue READER
+				}
 
 				// find sender and send GIYA
+				gz := giyaSenz(uid, dz.Sender)
 				if senzies[dz.Sender] != nil {
-					senzies[dz.Sender].out <- giyaSenz(uid, senzie.name)
+					senzies[dz.Sender].out <- gz
 				} else {
-					// no senzie to forward senz, so enqueu it
-					fmt.Println("no senzie to send giya: " + senz.Receiver)
-					mongoStore.enqueueSenz(senz)
+					fmt.Println("no senzie to send giya senz, enqueue " + gz.Msg)
+					mongoStore.enqueueSenz(&gz)
 				}
 			}
 		} else if senz.Ztype == "SHARE" && senz.Receiver == "sampath.chain" {
@@ -230,9 +234,8 @@ READER:
 			if senzies[senz.Receiver] != nil {
 				senzies[senz.Receiver].out <- senz
 			} else {
-				// no senzie to forward senz, so enqueu it
-				fmt.Println("no senzie to forward senz: ", senz.Receiver, " :"+senz.Msg)
-				mongoStore.enqueueSenz(senz)
+				fmt.Println("no senzie to send senz, enqueued " + senz.Msg)
+				mongoStore.enqueueSenz(&senz)
 			}
 		}
 	}
@@ -255,8 +258,8 @@ WRITER:
 			break WRITER
 		case senz := <-senzie.out:
 			// enqueu senz, except AWA, GIYA and broadcase senz(receiver="*")
-			if senz.Ztype != "AWA" && senz.Ztype != "GIYA" && senz.Receiver != "*" {
-				mongoStore.enqueueSenz(senz)
+			if senz.Ztype != "AWA" && senz.Ztype != "GIYA" {
+				mongoStore.enqueueSenz(&senz)
 			}
 
 			senzie.writer.WriteString(senz.Msg + ";")
