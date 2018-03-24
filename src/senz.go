@@ -214,7 +214,7 @@ READER:
 				// get senz with given uid
 				uid := senz.Attr["uid"]
 				var dz = mongoStore.dequeueSenzById(uid)
-				if dz.Ztype == "" {
+				if dz.Ztype == "" || dz.Sender == config.switchName {
 					continue READER
 				}
 
@@ -227,7 +227,7 @@ READER:
 					mongoStore.enqueueSenz(&gz)
 				}
 			}
-		} else if senz.Ztype == "SHARE" && senz.Receiver == "sampath.chain" {
+		} else if senz.Receiver == "sampath.chain" {
 			// for sampath bank
 			go promize(&senz)
 		} else {
