@@ -214,7 +214,7 @@ READER:
 				// get senz with given uid
 				uid := senz.Attr["uid"]
 				var dz = mongoStore.dequeueSenzById(uid)
-				if dz.Ztype == "" || dz.Sender == config.switchName {
+				if dz.Ztype == "" || dz.Sender == config.switchName || dz.Sender == chainzConfig.name {
 					continue READER
 				}
 
