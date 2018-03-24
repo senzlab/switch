@@ -11,6 +11,8 @@ ENV ZWITCH_NAME senzswitch
 ENV ZWITCH_PORT 7171
 ENV MONGO_HOST dev.localhost
 ENV MONGO_PORT 27017
+ENV CHAINZ_NAME sampath.chain
+ENV CHAINZ_KEY chainzkey
 ENV PROMIZE_API https://chainz.com:8443/promizes
 ENV UZER_API https://chainz.com:8443/uzers
 

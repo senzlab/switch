@@ -48,8 +48,23 @@ var (
 )
 
 func main() {
-	// first init key pair
+	// db setup
+	session, err := mgo.Dial(mongoConfig.mongoHost)
+	if err != nil {
+		fmt.Println("Error connecting mongo: ", err.Error())
+		return
+	}
+	defer session.Close()
+	session.SetMode(mgo.Monotonic, true)
+	mongoStore.session = session
+
+	// init key pair
+	// chainz key to store
 	setUpKeys()
+	key := mongoStore.getKey(chainzConfig.name)
+	if key.Value == "" {
+		mongoStore.putKey(&Key{chainzConfig.name, chainzConfig.key})
+	}
 
 	// listen for incoming conns
 	listener, err := net.Listen("tcp", ":"+config.switchPort)
@@ -58,16 +73,6 @@ func main() {
 		return
 	}
 	defer listener.Close()
-
-	// db setup
-	session, err := mgo.Dial(config.mongoHost)
-	if err != nil {
-		fmt.Println("Error connecting mongo: ", err.Error())
-		return
-	}
-	defer session.Close()
-	session.SetMode(mgo.Monotonic, true)
-	mongoStore.session = session
 
 	// listeneing
 	listening(listener)

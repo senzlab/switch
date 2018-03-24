@@ -50,9 +50,9 @@ func promize(senz *Senz) {
 	// post request
 	var api string
 	if _, ok := senz.Attr["blob"]; ok {
-		api = config.promizeApi
+		api = chainzConfig.promizeApi
 	} else {
-		api = config.uzerApi
+		api = chainzConfig.uzerApi
 	}
 
 	println("sending request " + api)

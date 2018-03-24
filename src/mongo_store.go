@@ -19,7 +19,7 @@ func (ks *MongoStore) putKey(key *Key) {
 	sessionCopy := ks.session.Copy()
 	defer sessionCopy.Close()
 
-	var coll = sessionCopy.DB(config.mongoDb).C(config.keyColl)
+	var coll = sessionCopy.DB(mongoConfig.mongoDb).C(mongoConfig.keyColl)
 	err := coll.Insert(key)
 	if err != nil {
 		fmt.Println("Error put key: ", err.Error(), ": "+key.Name)
@@ -30,7 +30,7 @@ func (ks *MongoStore) getKey(name string) *Key {
 	sessionCopy := ks.session.Copy()
 	defer sessionCopy.Close()
 
-	var coll = sessionCopy.DB(config.mongoDb).C(config.keyColl)
+	var coll = sessionCopy.DB(mongoConfig.mongoDb).C(mongoConfig.keyColl)
 	key := &Key{}
 	err := coll.Find(bson.M{"name": name}).One(key)
 	if err != nil {
@@ -44,7 +44,7 @@ func (ks *MongoStore) enqueueSenz(qSenz *Senz) {
 	sessionCopy := ks.session.Copy()
 	defer sessionCopy.Close()
 
-	var coll = sessionCopy.DB(config.mongoDb).C(config.senzColl)
+	var coll = sessionCopy.DB(mongoConfig.mongoDb).C(mongoConfig.senzColl)
 	err := coll.Insert(qSenz)
 	if err != nil {
 		fmt.Println("Error enque senz: ", err.Error())
@@ -55,7 +55,7 @@ func (ks *MongoStore) dequeueSenzById(uid string) *Senz {
 	sessionCopy := ks.session.Copy()
 	defer sessionCopy.Close()
 
-	var coll = sessionCopy.DB(config.mongoDb).C(config.senzColl)
+	var coll = sessionCopy.DB(mongoConfig.mongoDb).C(mongoConfig.senzColl)
 
 	// get
 	qSenz := &Senz{}
@@ -77,7 +77,7 @@ func (ks *MongoStore) dequeueSenzByReceiver(receiver string) []Senz {
 	sessionCopy := ks.session.Copy()
 	defer sessionCopy.Close()
 
-	var coll = sessionCopy.DB(config.mongoDb).C(config.senzColl)
+	var coll = sessionCopy.DB(mongoConfig.mongoDb).C(mongoConfig.senzColl)
 
 	fmt.Println("dequeuing senz of : ", receiver)
 
