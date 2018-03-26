@@ -34,6 +34,7 @@ type Senz struct {
 // 2. socket read timeout
 // 3. ticking interval
 const (
+	chanelSize  = 10
 	bufSize     = 16 * 1024
 	readTimeout = 30 * time.Minute
 	tikInterval = 60 * time.Second
@@ -90,7 +91,7 @@ LISTENER:
 
 		// new senzie
 		senzie := &Senzie{
-			out:    make(chan Senz),
+			out:    make(chan Senz, chanelSize),
 			quit:   make(chan bool),
 			reader: bufio.NewReaderSize(conn, bufSize),
 			writer: bufio.NewWriterSize(conn, bufSize),
@@ -192,6 +193,8 @@ READER:
 		// parse senz and handle it
 		senz := parse(msg)
 
+		println("received: " + msg)
+
 		// verify signature first of all
 		payload := strings.Replace(senz.Msg, senz.Digsig, "", -1)
 		senzieKey := getSenzieRsaPub(mongoStore.getKey(senzie.name).Value)
@@ -237,7 +240,7 @@ READER:
 
 			// forwared senz msg to receiver
 			if senzies[senz.Receiver] != nil {
-				senzies[senz.Receiver].out <- senz
+				safeWrite(senzies[senz.Receiver], senz)
 			} else {
 				fmt.Println("no senzie to send senz, enqueued " + senz.Msg)
 				mongoStore.enqueueSenz(&senz)
@@ -260,6 +263,8 @@ WRITER:
 		case <-senzie.quit:
 			println("quiting/write/tick -- " + senzie.name)
 			senzie.tik.Stop()
+			close(senzie.quit)
+			close(senzie.out)
 			break WRITER
 		case senz := <-senzie.out:
 			// enqueu senz, except AWA, GIYA and broadcase senz(receiver="*")
@@ -287,4 +292,20 @@ func dispatching(senzie *Senzie) {
 	for _, z := range zs {
 		senzie.out <- z
 	}
+}
+
+func safeWrite(senzie *Senzie, z Senz) {
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Println(err)
+
+			// remove senzie
+			delete(senzies, senzie.name)
+		}
+	}()
+
+	// enqueu senz
+
+	// write
+	senzie.out <- z
 }
