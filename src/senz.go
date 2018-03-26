@@ -227,7 +227,7 @@ READER:
 					mongoStore.enqueueSenz(&gz)
 				}
 			}
-		} else if senz.Receiver == "sampath.chain" {
+		} else if senz.Receiver == chainzConfig.name {
 			// for sampath bank
 			go promize(&senz)
 		} else {
