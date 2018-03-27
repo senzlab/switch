@@ -11,6 +11,7 @@ import (
 
 type Senzie struct {
 	name   string
+	id     string
 	out    chan Senz
 	quit   chan bool
 	tik    *time.Ticker
@@ -112,9 +113,11 @@ func registering(senzie *Senzie) {
 
 	println("received " + msg)
 
-	// get pubkey
 	senz := parse(msg)
 	senzie.name = senz.Sender
+	senzie.id = senz.Attr["uid"]
+
+	// get pubkey
 	pubkey := senz.Attr["pubkey"]
 	key := mongoStore.getKey(senzie.name)
 
@@ -140,11 +143,9 @@ func registering(senzie *Senzie) {
 	} else if key.Value == pubkey {
 		// already registerd senzie
 		// close existing senzie's conn
-		// delete existing senzie
 		// then add new senzie
 		if senzies[senzie.name] != nil {
 			senzies[senzie.name].conn.Close()
-			delete(senzies, senzie.name)
 		}
 		senzies[senzie.name] = senzie
 
@@ -240,7 +241,7 @@ READER:
 
 			// forwared senz msg to receiver
 			if senzies[senz.Receiver] != nil {
-				safeWrite(senzies[senz.Receiver], senz)
+				writeRecover(senzies[senz.Receiver], senz)
 			} else {
 				fmt.Println("no senzie to send senz, enqueued " + senz.Msg)
 				mongoStore.enqueueSenz(&senz)
@@ -262,9 +263,17 @@ WRITER:
 		select {
 		case <-senzie.quit:
 			println("quiting/write/tick -- " + senzie.name)
+
+			// close channles
 			senzie.tik.Stop()
 			close(senzie.quit)
 			close(senzie.out)
+
+			// delete senzie
+			// check weather deleting senzie is same to senzie in senzies
+			if senzie.id == senzies[senzie.name].id {
+				delete(senzies, senzie.name)
+			}
 			break WRITER
 		case senz := <-senzie.out:
 			// enqueu senz, except AWA, GIYA and broadcase senz(receiver="*")
@@ -294,13 +303,10 @@ func dispatching(senzie *Senzie) {
 	}
 }
 
-func safeWrite(senzie *Senzie, z Senz) {
+func writeRecover(senzie *Senzie, z Senz) {
 	defer func() {
 		if err := recover(); err != nil {
 			fmt.Println(err)
-
-			// remove senzie
-			delete(senzies, senzie.name)
 		}
 	}()
 
