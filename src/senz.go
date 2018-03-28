@@ -310,7 +310,7 @@ func writeRecover(senzie *Senzie, z Senz) {
 		}
 	}()
 
-	// enqueu senz
+	// TODO enqueu senz
 
 	// write
 	senzie.out <- z
