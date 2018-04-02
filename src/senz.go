@@ -104,73 +104,87 @@ LISTENER:
 }
 
 func registering(senzie *Senzie) {
-	// listen for reg senz
-	msg, err := senzie.reader.ReadString(';')
-	if err != nil {
-		fmt.Println("Error reading: ", err.Error())
-		senzie.conn.Close()
-	}
-
-	println("received " + msg)
-
-	senz := parse(msg)
-	senzie.name = senz.Sender
-	senzie.id = senz.Attr["uid"]
-
-	// get pubkey
-	pubkey := senz.Attr["pubkey"]
-	key := mongoStore.getKey(senzie.name)
-
-	// check for reg
-	if key.Value == "" {
-		// not registerd senzie
-		// save pubkey
-		// add senzie
-		mongoStore.putKey(&Key{senzie.name, pubkey})
-		senzies[senzie.name] = senzie
-
-		// send status
-		sz := regSenz(senz.Attr["uid"], "REG_DONE", senzie.name)
-		senzie.writer.WriteString(sz.Msg + ";")
-		senzie.writer.Flush()
-
-		// start ticking
-		// start reading
-		// start writing
-		senzie.tik = time.NewTicker(tikInterval)
-		go reading(senzie)
-		go writing(senzie)
-	} else if key.Value == pubkey {
-		// already registerd senzie
-		// close existing senzie's conn
-		// then add new senzie
-		if senzies[senzie.name] != nil {
-			senzies[senzie.name].conn.Close()
+REGISTER:
+	for {
+		// listen for reg senz
+		msg, err := senzie.reader.ReadString(';')
+		if err != nil {
+			fmt.Println("Error reading: ", err.Error())
+			senzie.conn.Close()
 		}
-		senzies[senzie.name] = senzie
 
-		// send status
-		sz := regSenz(senz.Attr["uid"], "REG_ALR", senzie.name)
-		senzie.writer.WriteString(sz.Msg + ";")
-		senzie.writer.Flush()
+		println("received " + msg)
 
-		// start ticking
-		// start reading
-		// start writing
-		// dispatch queued messages of senzie
-		senzie.tik = time.NewTicker(tikInterval)
-		go reading(senzie)
-		go writing(senzie)
-		go dispatching(senzie)
-	} else {
-		// name already obtained
-		// send status
-		uid := senz.Attr["uid"]
-		senz := regSenz(uid, "REG_FAIL", senzie.name)
+		// not handle TAK, TIK, TUK
+		if msg == "TAK;" || msg == "TIK;" || msg == "TUK;" {
+			continue REGISTER
+		}
 
-		// write
-		senzie.writer.WriteString(senz.Msg + ";")
-		senzie.writer.Flush()
+		senz := parse(msg)
+		senzie.name = senz.Sender
+		senzie.id = senz.Attr["uid"]
+
+		// get pubkey
+		pubkey := senz.Attr["pubkey"]
+		key := mongoStore.getKey(senzie.name)
+
+		// check for reg
+		if key.Value == "" {
+			// not registerd senzie
+			// save pubkey
+			// add senzie
+			mongoStore.putKey(&Key{senzie.name, pubkey})
+			senzies[senzie.name] = senzie
+
+			// send status
+			sz := regSenz(senz.Attr["uid"], "REG_DONE", senzie.name)
+			senzie.writer.WriteString(sz.Msg + ";")
+			senzie.writer.Flush()
+
+			// start ticking
+			// start reading
+			// start writing
+			senzie.tik = time.NewTicker(tikInterval)
+			go reading(senzie)
+			go writing(senzie)
+
+			break REGISTER
+		} else if key.Value == pubkey {
+			// already registerd senzie
+			// close existing senzie's conn
+			// then add new senzie
+			if senzies[senzie.name] != nil {
+				senzies[senzie.name].conn.Close()
+			}
+			senzies[senzie.name] = senzie
+
+			// send status
+			sz := regSenz(senz.Attr["uid"], "REG_ALR", senzie.name)
+			senzie.writer.WriteString(sz.Msg + ";")
+			senzie.writer.Flush()
+
+			// start ticking
+			// start reading
+			// start writing
+			// dispatch queued messages of senzie
+			senzie.tik = time.NewTicker(tikInterval)
+			go reading(senzie)
+			go writing(senzie)
+			go dispatching(senzie)
+
+			break REGISTER
+		} else {
+			// name already obtained
+			// send status
+			uid := senz.Attr["uid"]
+			senz := regSenz(uid, "REG_FAIL", senzie.name)
+
+			// write
+			senzie.writer.WriteString(senz.Msg + ";")
+			senzie.writer.Flush()
+
+			break REGISTER
+		}
 	}
 }
 
