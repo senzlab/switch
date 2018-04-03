@@ -1,12 +1,13 @@
 package main
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 	"time"
 )
 
-func parse(msg string) Senz {
+func parse(msg string) (*Senz, error) {
 	fMsg := formatToParse(msg)
 	tokens := strings.Split(fMsg, " ")
 	senz := Senz{}
@@ -52,7 +53,12 @@ func parse(msg string) Senz {
 	// set uid as the senz id
 	senz.Uid = senz.Attr["uid"]
 
-	return senz
+	// check for errors
+	if senz.Sender == "" || senz.Receiver == "" || senz.Digsig == "" || senz.Ztype == "" || senz.Uid == "" || senz.Msg == "" {
+		return nil, errors.New("Invalid senzie")
+	}
+
+	return &senz, nil
 }
 
 func formatToParse(msg string) string {

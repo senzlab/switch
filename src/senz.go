@@ -111,6 +111,7 @@ REGISTER:
 		if err != nil {
 			fmt.Println("Error reading: ", err.Error())
 			senzie.conn.Close()
+			break REGISTER
 		}
 
 		println("received " + msg)
@@ -120,7 +121,13 @@ REGISTER:
 			continue REGISTER
 		}
 
-		senz := parse(msg)
+		senz, err := parse(msg)
+		if err != nil {
+			fmt.Println("Error senz: ", err.Error())
+			senzie.conn.Close()
+			break REGISTER
+		}
+
 		senzie.name = senz.Sender
 		senzie.id = senz.Attr["uid"]
 
@@ -206,7 +213,12 @@ READER:
 		}
 
 		// parse senz and handle it
-		senz := parse(msg)
+		senz, err := parse(msg)
+		if err != nil {
+			fmt.Println("Error senz: ", err.Error())
+			senzie.conn.Close()
+			break READER
+		}
 
 		println("received: " + msg)
 
@@ -247,7 +259,7 @@ READER:
 			}
 		} else if senz.Receiver == chainzConfig.name {
 			// for sampath bank
-			go promize(&senz)
+			go promize(senz)
 		} else {
 			// send AWA back to sender
 			uid := senz.Attr["uid"]
@@ -258,7 +270,7 @@ READER:
 				writeRecover(senzies[senz.Receiver], senz)
 			} else {
 				fmt.Println("no senzie to send senz, enqueued " + senz.Msg)
-				mongoStore.enqueueSenz(&senz)
+				mongoStore.enqueueSenz(senz)
 			}
 		}
 	}
@@ -317,7 +329,7 @@ func dispatching(senzie *Senzie) {
 	}
 }
 
-func writeRecover(senzie *Senzie, z Senz) {
+func writeRecover(senzie *Senzie, z *Senz) {
 	defer func() {
 		if err := recover(); err != nil {
 			fmt.Println(err)
@@ -327,5 +339,5 @@ func writeRecover(senzie *Senzie, z Senz) {
 	// TODO enqueu senz
 
 	// write
-	senzie.out <- z
+	senzie.out <- *z
 }
