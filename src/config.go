@@ -46,7 +46,7 @@ var mongoConfig = MongoConfig{
 }
 
 var chainzConfig = ChainzConfig{
-	name:       getEnv("CHAINZ_NAME", "sampath.chain"),
+	name:       getEnv("CHAINZ_NAME", "sampath"),
 	key:        getEnv("CHAINZ_KEY", "chainzkey"),
 	promizeApi: getEnv("PROMIZE_API", "https://chainz.com:8443/promizes"),
 	uzerApi:    getEnv("UZER_API", "https://chainz.com:8443/uzers"),

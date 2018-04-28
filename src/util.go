@@ -55,7 +55,7 @@ func parse(msg string) (*Senz, error) {
 
 	// check for errors
 	if senz.Sender == "" || senz.Receiver == "" || senz.Digsig == "" || senz.Ztype == "" || senz.Uid == "" || senz.Msg == "" {
-		return nil, errors.New("Invalid senzie")
+		return nil, errors.New("Invalid senz")
 	}
 
 	return &senz, nil
