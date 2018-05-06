@@ -23,7 +23,6 @@ type MongoConfig struct {
 
 type ChainzConfig struct {
 	name       string
-	key        string
 	promizeApi string
 	uzerApi    string
 }
@@ -47,7 +46,6 @@ var mongoConfig = MongoConfig{
 
 var chainzConfig = ChainzConfig{
 	name:       getEnv("CHAINZ_NAME", "sampath"),
-	key:        getEnv("CHAINZ_KEY", "chainzkey"),
 	promizeApi: getEnv("PROMIZE_API", "https://chainz.com:8443/promizes"),
 	uzerApi:    getEnv("UZER_API", "https://chainz.com:8443/uzers"),
 }
