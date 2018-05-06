@@ -61,12 +61,7 @@ func main() {
 	mongoStore.session = session
 
 	// init key pair
-	// chainz key to store
 	setUpKeys()
-	key := mongoStore.getKey(chainzConfig.name)
-	if key.Value == "" {
-		mongoStore.putKey(&Key{chainzConfig.name, chainzConfig.key})
-	}
 
 	// listen for incoming conns
 	listener, err := net.Listen("tcp", ":"+config.switchPort)
