@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
+	"encoding/asn1"
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
@@ -200,18 +201,15 @@ func getSenzieRsaPub(keyStr string) *rsa.PublicKey {
 		return nil
 	}
 
-	// get rsa public key
-	pub, e2 := x509.ParsePKIXPublicKey(data)
-	if e2 != nil {
-		println(e2.Error())
-		return nil
+	var pubKey rsa.PublicKey
+	if rest, err := asn1.Unmarshal(data, &pubKey); err != nil {
+		println("errr1")
+	} else if len(rest) != 0 {
+		println("errr222")
 	}
-	switch pub := pub.(type) {
-	case *rsa.PublicKey:
-		return pub
-	default:
-		return nil
-	}
+
+	println("hoooo")
+	return &pubKey
 }
 
 func sign(payload string, key *rsa.PrivateKey) (string, error) {
