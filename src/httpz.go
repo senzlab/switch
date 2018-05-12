@@ -5,12 +5,11 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
-	"errors"
 	"io/ioutil"
 	"net/http"
 )
 
-func post(senz *Senz) ([]byte, error) {
+func post(senz *Senz) ([]byte, int) {
 	// load client cert
 	cert, err := tls.LoadX509KeyPair(".certs/client.crt", ".certs/client.key")
 	if err != nil {
@@ -60,12 +59,12 @@ func post(senz *Senz) ([]byte, error) {
 	resp, err := client.Do(req)
 	if err != nil {
 		println(err.Error())
-		return nil, errors.New("Error response")
+		return nil, 400
 	}
 	defer resp.Body.Close()
 
 	b, _ := ioutil.ReadAll(resp.Body)
 	println(string(b))
 
-	return b, nil
+	return b, resp.StatusCode
 }

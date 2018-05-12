@@ -33,7 +33,7 @@ var (
 	mongoStore = &MongoStore{}
 )
 
-func main() {
+func main1() {
 	// db setup
 	session, err := mgo.Dial(mongoConfig.mongoHost)
 	if err != nil {
@@ -64,6 +64,7 @@ func main() {
 }
 
 func postPromize(w http.ResponseWriter, r *http.Request) {
+	println("reading promize")
 	// read body
 	b, _ := ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
@@ -75,7 +76,7 @@ func postPromize(w http.ResponseWriter, r *http.Request) {
 	json.Unmarshal(b, &senzMsg)
 	senz, err := parse(senzMsg.Msg)
 	if err != nil {
-		errorResponse(w, senz.Attr["uid"], senz.Sender)
+		// we not send any response we just disconnect
 		return
 	}
 
@@ -89,7 +90,12 @@ func postPromize(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// promize and get response
-	b, _ = post(senz)
+	b, statusCode := post(senz)
+	if statusCode != 200 {
+		errorResponse(w, senz.Attr["uid"], senz.Sender)
+		return
+	}
+
 	var zmsgs []SenzMsg
 	json.Unmarshal(b, &zmsgs)
 
@@ -113,6 +119,24 @@ func postPromize(w http.ResponseWriter, r *http.Request) {
 }
 
 func getPromize(w http.ResponseWriter, r *http.Request) {
+	// read body
+	b, _ := ioutil.ReadAll(r.Body)
+	defer r.Body.Close()
+
+	println(string(b))
+
+	// unmarshel json
+	var senzMsg SenzMsg
+	json.Unmarshal(b, &senzMsg)
+	senz, err := parse(senzMsg.Msg)
+	if err != nil {
+		// we jsut retun with out sending response
+		return
+	}
+
+	println(senz)
+
+	// TODO handle
 	return
 }
 
@@ -128,7 +152,7 @@ func postUzer(w http.ResponseWriter, r *http.Request) {
 	json.Unmarshal(b, &senzMsg)
 	senz, err := parse(senzMsg.Msg)
 	if err != nil {
-		errorResponse(w, senz.Attr["uid"], senz.Sender)
+		// we jsut retun with out sending response
 		return
 	}
 
@@ -147,7 +171,12 @@ func postUzer(w http.ResponseWriter, r *http.Request) {
 
 		// post user to chainz
 		// handle response
-		b, _ = post(senz)
+		b, statusCode := post(senz)
+		if statusCode != 200 {
+			errorResponse(w, senz.Attr["uid"], senz.Sender)
+			return
+		}
+
 		var zmsgs []SenzMsg
 		json.Unmarshal(b, &zmsgs)
 
@@ -166,10 +195,44 @@ func postUzer(w http.ResponseWriter, r *http.Request) {
 }
 
 func putUzer(w http.ResponseWriter, r *http.Request) {
+	// read body
+	b, _ := ioutil.ReadAll(r.Body)
+	defer r.Body.Close()
+
+	println(string(b))
+
+	// unmarshel json
+	var senzMsg SenzMsg
+	json.Unmarshal(b, &senzMsg)
+	senz, err := parse(senzMsg.Msg)
+	if err != nil {
+		// we jsut retun with out sending response
+		return
+	}
+	println(senz)
+
+	// TODO handle
 	return
 }
 
 func postDevize(w http.ResponseWriter, r *http.Request) {
+	// read body
+	b, _ := ioutil.ReadAll(r.Body)
+	defer r.Body.Close()
+
+	println(string(b))
+
+	// unmarshel json
+	var senzMsg SenzMsg
+	json.Unmarshal(b, &senzMsg)
+	senz, err := parse(senzMsg.Msg)
+	if err != nil {
+		// we jsut retun with out sending response
+		return
+	}
+	println(senz)
+
+	// TODO handle
 	return
 }
 
