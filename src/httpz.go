@@ -5,17 +5,12 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"net/http"
 )
 
-type SenzMsg struct {
-	Uid string
-	Msg string
-}
-
-func promize(senz *Senz) {
-
+func post(senz *Senz) ([]byte, error) {
 	// load client cert
 	cert, err := tls.LoadX509KeyPair(".certs/client.crt", ".certs/client.key")
 	if err != nil {
@@ -65,28 +60,12 @@ func promize(senz *Senz) {
 	resp, err := client.Do(req)
 	if err != nil {
 		println(err.Error())
-		return
+		return nil, errors.New("Error response")
 	}
 	defer resp.Body.Close()
 
 	b, _ := ioutil.ReadAll(resp.Body)
 	println(string(b))
 
-	// unmarshel senz response
-	var zmsgs []SenzMsg
-	json.Unmarshal(b, &zmsgs)
-
-	// iterate over each and every msg and process it
-	for _, zmsg := range zmsgs {
-		z, _ := parse(string(zmsg.Msg))
-
-		// check senzie exists
-		if senzies[z.Receiver] != nil {
-			// write
-			senzies[z.Receiver].out <- *z
-		} else {
-			println("no senzie to send httpz senz, enqueued " + z.Msg)
-			mongoStore.enqueueSenz(z)
-		}
-	}
+	return b, nil
 }
