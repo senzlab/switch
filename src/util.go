@@ -172,11 +172,22 @@ func blobSenz(blob string, uid, to string) string {
 	return sz
 }
 
-func notifySenz(senz *Senz) string {
+func notifyPromizeSenz(senz *Senz) string {
 	z := "DATA #uid " + senz.Attr["uid"] +
 		" #id " + senz.Attr["id"] +
 		" #amnt " + senz.Attr["amnt"] +
 		" #from " + senz.Attr["from"] +
+		" @" + senz.Receiver +
+		" ^" + config.switchName
+	s, _ := sign(z, getIdRsa())
+	sz := z + " " + s
+	return sz
+}
+
+func notifyConnectSenz(senz *Senz) string {
+	z := "DATA #uid " + senz.Attr["uid"] +
+		" #pubkey " + senz.Attr["pubkey"] +
+		" #from " + senz.Sender +
 		" @" + senz.Receiver +
 		" ^" + config.switchName
 	s, _ := sign(z, getIdRsa())
