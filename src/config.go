@@ -27,6 +27,11 @@ type ChainzConfig struct {
 	uzerApi    string
 }
 
+type FcmConfig struct {
+	androidApi string
+	serverKey  string
+}
+
 var config = Config{
 	switchName: getEnv("ZWITCH_NAME", "senzswitch"),
 	switchPort: getEnv("ZWITCH_PORT", "7171"),
@@ -48,6 +53,11 @@ var chainzConfig = ChainzConfig{
 	name:       getEnv("CHAINZ_NAME", "sampath"),
 	promizeApi: getEnv("PROMIZE_API", "https://chainz.com:8443/promizes"),
 	uzerApi:    getEnv("UZER_API", "https://chainz.com:8443/uzers"),
+}
+
+var fcmConfig = FcmConfig{
+	androidApi: getEnv("FCM_ANDROID_API", "https://fcm.googleapis.com/fcm/send"),
+	serverKey:  getEnv("FCM_SERVER_KEY", ""),
 }
 
 func getEnv(key, fallback string) string {

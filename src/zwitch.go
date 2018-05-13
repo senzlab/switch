@@ -33,7 +33,7 @@ var (
 	mongoStore = &MongoStore{}
 )
 
-func main1() {
+func main() {
 	// db setup
 	session, err := mgo.Dial(mongoConfig.mongoHost)
 	if err != nil {
@@ -53,7 +53,6 @@ func main1() {
 	r.HandleFunc("/promizes", getPromize).Methods("GET")
 	r.HandleFunc("/uzers", postUzer).Methods("POST")
 	r.HandleFunc("/uzers", putUzer).Methods("PUT")
-	r.HandleFunc("/devizes", postDevize).Methods("POST")
 
 	// start server
 	err = http.ListenAndServe(":7171", r)
@@ -77,6 +76,7 @@ func postPromize(w http.ResponseWriter, r *http.Request) {
 	senz, err := parse(senzMsg.Msg)
 	if err != nil {
 		// we not send any response we just disconnect
+		errorResponse(w, "", "")
 		return
 	}
 
@@ -91,7 +91,7 @@ func postPromize(w http.ResponseWriter, r *http.Request) {
 
 	// promize and get response
 	b, statusCode := post(senz)
-	if statusCode != 200 {
+	if statusCode != http.StatusOK {
 		errorResponse(w, senz.Attr["uid"], senz.Sender)
 		return
 	}
@@ -105,13 +105,20 @@ func postPromize(w http.ResponseWriter, r *http.Request) {
 
 		if z.Receiver == senz.Sender {
 			// this message for senz sender
-			// TODO send success response back
-			// successResponse(zmsg)
+			// send success response back
+			successResponse(w, z.Attr["uid"], z.Receiver)
 		} else {
 			// this means forwarding promize
+			// enqueu promizes
+			mongoStore.enqueueSenz(z)
 
-			// TODO save promizes
-			// TODO send push notification
+			// send push notification
+			to := "c6XflK4gmjk:APA91bFWLEwu7pg1gVAqnXA6KFr3qSVgiT7nsY_RadHU1v_nn9-jw3PyXoZTKP5b-m73sIoJ1jrFRkxxCgiuKcBeyYWFJdIJB6IIsQVpdWng_sQTuHxRvHH_iTUIiGCRjwFqxc2VDRTy"
+			senzMsg := SenzMsg{
+				Uid: z.Attr["uid"],
+				Msg: notifySenz(z),
+			}
+			notify(to, senzMsg)
 		}
 	}
 
@@ -131,12 +138,29 @@ func getPromize(w http.ResponseWriter, r *http.Request) {
 	senz, err := parse(senzMsg.Msg)
 	if err != nil {
 		// we jsut retun with out sending response
+		errorResponse(w, "", "")
 		return
 	}
 
-	println(senz)
+	// get senzie key
+	payload := strings.Replace(senz.Msg, senz.Digsig, "", -1)
+	senzieKey := getSenzieRsaPub(mongoStore.getKey(senz.Sender).Value)
+	err = verify(payload, senz.Digsig, senzieKey)
+	if err != nil {
+		errorResponse(w, senz.Attr["uid"], senz.Sender)
+		return
+	}
 
-	// TODO handle
+	// get senz
+	qSenz := mongoStore.dequeueSenzById(senz.Attr["uid"])
+	if qSenz.Receiver != senz.Sender {
+		// not authorized
+		errorResponse(w, "", "")
+		return
+	}
+
+	// response blob
+	blobResponse(w, qSenz.Attr["blob"], senz.Attr["uid"], senz.Sender)
 	return
 }
 
@@ -153,6 +177,7 @@ func postUzer(w http.ResponseWriter, r *http.Request) {
 	senz, err := parse(senzMsg.Msg)
 	if err != nil {
 		// we jsut retun with out sending response
+		errorResponse(w, "", "")
 		return
 	}
 
@@ -171,21 +196,19 @@ func postUzer(w http.ResponseWriter, r *http.Request) {
 
 		// post user to chainz
 		// handle response
-		b, statusCode := post(senz)
-		if statusCode != 200 {
+		_, statusCode := post(senz)
+		if statusCode != http.StatusOK {
 			errorResponse(w, senz.Attr["uid"], senz.Sender)
 			return
 		}
-
-		var zmsgs []SenzMsg
-		json.Unmarshal(b, &zmsgs)
 
 		// save user with
 		// 1. key
 		// 2. firebase device id
 		mongoStore.putKey(&Key{senz.Sender, senz.Attr["pubkey"]})
 
-		// TODO forward respose to senzie
+		// success response
+		successResponse(w, senz.Attr["uid"], senz.Sender)
 		return
 	} else {
 		// this means already registered senzie
@@ -207,32 +230,30 @@ func putUzer(w http.ResponseWriter, r *http.Request) {
 	senz, err := parse(senzMsg.Msg)
 	if err != nil {
 		// we jsut retun with out sending response
+		errorResponse(w, senz.Attr["uid"], senz.Sender)
 		return
 	}
 	println(senz)
 
-	// TODO handle
-	return
-}
-
-func postDevize(w http.ResponseWriter, r *http.Request) {
-	// read body
-	b, _ := ioutil.ReadAll(r.Body)
-	defer r.Body.Close()
-
-	println(string(b))
-
-	// unmarshel json
-	var senzMsg SenzMsg
-	json.Unmarshal(b, &senzMsg)
-	senz, err := parse(senzMsg.Msg)
+	// get senzie key
+	payload := strings.Replace(senz.Msg, senz.Digsig, "", -1)
+	senzieKey := getSenzieRsaPub(mongoStore.getKey(senz.Sender).Value)
+	err = verify(payload, senz.Digsig, senzieKey)
 	if err != nil {
-		// we jsut retun with out sending response
+		errorResponse(w, senz.Attr["uid"], senz.Sender)
 		return
 	}
-	println(senz)
 
-	// TODO handle
+	// post user to chainz
+	// handle response
+	_, statusCode := post(senz)
+	if statusCode != http.StatusOK {
+		errorResponse(w, senz.Attr["uid"], senz.Sender)
+		return
+	}
+
+	// success response
+	successResponse(w, senz.Attr["uid"], senz.Sender)
 	return
 }
 
@@ -242,15 +263,28 @@ func errorResponse(w http.ResponseWriter, uid string, to string) {
 		Uid: uid,
 		Msg: statusSenz("ERROR", uid, to),
 	}
-	var zmsgs []SenzMsg
-	zmsgs = append(zmsgs, zmsg)
-	j, _ := json.Marshal(zmsgs)
+	j, _ := json.Marshal(zmsg)
 	http.Error(w, string(j), 400)
 }
 
-func successResponse(w http.ResponseWriter, zmsgs []SenzMsg) {
-	j, _ := json.Marshal(zmsgs)
-	w.WriteHeader(http.StatusCreated)
+func successResponse(w http.ResponseWriter, uid string, to string) {
+	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
+	zmsg := SenzMsg{
+		Uid: uid,
+		Msg: statusSenz("SUCCESS", uid, to),
+	}
+	j, _ := json.Marshal(zmsg)
+	io.WriteString(w, string(j))
+}
+
+func blobResponse(w http.ResponseWriter, blob string, uid string, to string) {
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	zmsg := SenzMsg{
+		Uid: uid,
+		Msg: blobSenz(blob, uid, to),
+	}
+	j, _ := json.Marshal(zmsg)
 	io.WriteString(w, string(j))
 }

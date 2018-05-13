@@ -2,7 +2,7 @@ package main
 
 import "fmt"
 
-func main() {
+func main1() {
 	keyStr := "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDLZDFn5KXgxFbHp6TNGr43TISslxBxUigoyqzeJj4g77LzMSh3tfsRHdHxFfqjQyzUBMJYd6cj0U87G1e2cEg98aHz/8PSmPFaUcNUWwszl/RdWD8yaJA8Qy9ZhvyLa7HQLdGcKRSM9mRwcIDEJQx31YV98yjZOygmZ/QmyYvYhwIDAQAB"
 	key := getSenzieRsaPub(keyStr)
 	if key != nil {

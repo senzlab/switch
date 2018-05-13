@@ -161,3 +161,25 @@ func statusSenz(status string, uid string, to string) string {
 	sz := z + " " + s
 	return sz
 }
+
+func blobSenz(blob string, uid, to string) string {
+	z := "DATA #blob " + blob +
+		" #uid " + uid +
+		" @" + to +
+		" ^" + config.switchName
+	s, _ := sign(z, getIdRsa())
+	sz := z + " " + s
+	return sz
+}
+
+func notifySenz(senz *Senz) string {
+	z := "DATA #uid " + senz.Attr["uid"] +
+		" #id " + senz.Attr["id"] +
+		" #amnt " + senz.Attr["amnt"] +
+		" #from " + senz.Attr["from"] +
+		" @" + senz.Receiver +
+		" ^" + config.switchName
+	s, _ := sign(z, getIdRsa())
+	sz := z + " " + s
+	return sz
+}
