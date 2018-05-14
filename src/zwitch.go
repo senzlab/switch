@@ -50,7 +50,7 @@ func main() {
 	// router
 	r := mux.NewRouter()
 	r.HandleFunc("/promizes", postPromize).Methods("POST")
-	r.HandleFunc("/promizes", getPromize).Methods("GET")
+	r.HandleFunc("/blobs", getBlob).Methods("POST")
 	r.HandleFunc("/uzers", postUzer).Methods("POST")
 	r.HandleFunc("/uzers", putUzer).Methods("PUT")
 	r.HandleFunc("/connections", postConnection).Methods("POST")
@@ -64,7 +64,7 @@ func main() {
 }
 
 func postPromize(w http.ResponseWriter, r *http.Request) {
-	println("reading promize")
+	println("posging promize")
 	// read body
 	b, _ := ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
@@ -113,9 +113,12 @@ func postPromize(w http.ResponseWriter, r *http.Request) {
 			// enqueu promizes
 			mongoStore.enqueueSenz(z)
 
-			// TODO get device id from mongo store key
-			// send push notification
-			to := "c6XflK4gmjk:APA91bFWLEwu7pg1gVAqnXA6KFr3qSVgiT7nsY_RadHU1v_nn9-jw3PyXoZTKP5b-m73sIoJ1jrFRkxxCgiuKcBeyYWFJdIJB6IIsQVpdWng_sQTuHxRvHH_iTUIiGCRjwFqxc2VDRTy"
+			// check receiver exists
+			// TODO
+			// get device id from mongo store key
+			// send push notification to reciver
+			rKey := mongoStore.getKey(z.Receiver)
+			to := rKey.DeviceId
 			senzMsg := SenzMsg{
 				Uid: z.Attr["uid"],
 				Msg: notifyPromizeSenz(z),
@@ -127,7 +130,9 @@ func postPromize(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func getPromize(w http.ResponseWriter, r *http.Request) {
+func getBlob(w http.ResponseWriter, r *http.Request) {
+	println("getting blob")
+
 	// read body
 	b, _ := ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
@@ -207,7 +212,12 @@ func postUzer(w http.ResponseWriter, r *http.Request) {
 		// save user with
 		// 1. key
 		// 2. firebase device id
-		mongoStore.putKey(&Key{senz.Sender, senz.Attr["pubkey"]})
+		key := Key{
+			Name:     senz.Sender,
+			Value:    senz.Attr["pubkey"],
+			DeviceId: senz.Attr["did"],
+		}
+		mongoStore.putKey(&key)
 
 		// success response
 		successResponse(w, senz.Attr["uid"], senz.Sender)
@@ -293,9 +303,9 @@ func postConnection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO get device id from mongo store key
+	// get device id from mongo store key
 	// send push notification to reciver
-	to := "c6XflK4gmjk:APA91bFWLEwu7pg1gVAqnXA6KFr3qSVgiT7nsY_RadHU1v_nn9-jw3PyXoZTKP5b-m73sIoJ1jrFRkxxCgiuKcBeyYWFJdIJB6IIsQVpdWng_sQTuHxRvHH_iTUIiGCRjwFqxc2VDRTy"
+	to := rKey.DeviceId
 	senzMsg = SenzMsg{
 		Uid: senz.Attr["uid"],
 		Msg: notifyConnectSenz(senz),

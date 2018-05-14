@@ -7,8 +7,10 @@ import (
 )
 
 type Key struct {
-	Name  string
-	Value string
+	Name     string
+	Value    string
+	Device   string
+	DeviceId string
 }
 
 type MongoStore struct {
