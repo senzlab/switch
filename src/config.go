@@ -28,8 +28,13 @@ type ChainzConfig struct {
 }
 
 type FcmConfig struct {
-	androidApi string
-	serverKey  string
+	api       string
+	serverKey string
+}
+
+type ApnConfig struct {
+	api         string
+	certificate string
 }
 
 var config = Config{
@@ -56,8 +61,13 @@ var chainzConfig = ChainzConfig{
 }
 
 var fcmConfig = FcmConfig{
-	androidApi: getEnv("FCM_ANDROID_API", "https://fcm.googleapis.com/fcm/send"),
-	serverKey:  getEnv("FCM_SERVER_KEY", ""),
+	api:       getEnv("FCM_API", "https://fcm.googleapis.com/fcm/send"),
+	serverKey: getEnv("FCM_SERVER_KEY", ""),
+}
+
+var apnConfig = ApnConfig{
+	api:       getEnv("APN_API", "https://api.push.apple.com:443"),
+	serverKey: getEnv("APN_CERTIFICATE", ""),
 }
 
 func getEnv(key, fallback string) string {

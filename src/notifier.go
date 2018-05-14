@@ -23,7 +23,7 @@ func notify(to string, msg SenzMsg) error {
 	println(string(j[:]))
 
 	// request
-	req, err := http.NewRequest("POST", fcmConfig.androidApi, bytes.NewBuffer(j))
+	req, err := http.NewRequest("POST", fcmConfig.api, bytes.NewBuffer(j))
 	if err != nil {
 		println(err.Error)
 		return err
