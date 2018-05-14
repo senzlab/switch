@@ -34,6 +34,7 @@ type FcmConfig struct {
 
 type ApnConfig struct {
 	api         string
+	topic       string
 	certificate string
 }
 
@@ -66,8 +67,9 @@ var fcmConfig = FcmConfig{
 }
 
 var apnConfig = ApnConfig{
-	api:       getEnv("APN_API", "https://api.push.apple.com:443"),
-	serverKey: getEnv("APN_CERTIFICATE", ""),
+	api:         getEnv("APN_API", "https://api.push.apple.com:443"),
+	topic:       getEnv("APN_TOPIC", "com.creative.igift"),
+	certificate: ".certs/apn.p12",
 }
 
 func getEnv(key, fallback string) string {

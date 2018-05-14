@@ -5,6 +5,7 @@ MAINTAINER Eranga Bandara (erangaeb@gmail.com)
 # install dependencies
 RUN go get gopkg.in/mgo.v2
 RUN	go get github.com/gorilla/mux
+RUN go get -u github.com/sideshow/apns2
 
 # env
 ENV ZWITCH_MODE DEV
