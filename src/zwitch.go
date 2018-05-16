@@ -1,5 +1,6 @@
 package main
 
+/*
 import (
 	"encoding/json"
 	"fmt"
@@ -370,3 +371,4 @@ func blobResponse(w http.ResponseWriter, blob string, uid string, to string) {
 	j, _ := json.Marshal(zmsg)
 	io.WriteString(w, string(j))
 }
+*/

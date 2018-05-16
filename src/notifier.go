@@ -12,11 +12,11 @@ import (
 )
 
 type Notification struct {
-	To   string  `json:"to"`
-	Data SenzMsg `json:"data"`
+	To   string `json:"to"`
+	Data string `json:"data"`
 }
 
-func notifa(to string, msg SenzMsg) error {
+func notifa(to string, msg string) error {
 	// marshel notification
 	notification := Notification{
 		To:   to,
