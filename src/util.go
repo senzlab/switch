@@ -189,7 +189,7 @@ func notifyConnectSenz(senz *Senz) string {
 	z := "DATA #uid " + senz.Attr["uid"] +
 		" #pubkey " + senz.Attr["pubkey"] +
 		" #from " + senz.Sender +
-		" @" + senz.Receiver +
+		" @" + senz.Attr["to"] +
 		" ^" + config.switchName
 	//s, _ := sign(z, getIdRsa())
 	s := "DIGSIG"

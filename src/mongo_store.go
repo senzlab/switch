@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
+	"log"
 )
 
 type Key struct {
@@ -24,7 +25,7 @@ func (ks *MongoStore) putKey(key *Key) {
 	var coll = sessionCopy.DB(mongoConfig.mongoDb).C(mongoConfig.keyColl)
 	err := coll.Insert(key)
 	if err != nil {
-		fmt.Println("Error put key: ", err.Error(), ": "+key.Name)
+		log.Printf("Error put key: ", err.Error(), ": "+key.Name)
 	}
 }
 
@@ -36,7 +37,7 @@ func (ks *MongoStore) getKey(name string) *Key {
 	key := &Key{}
 	err := coll.Find(bson.M{"name": name}).One(key)
 	if err != nil {
-		fmt.Println("key not found: ", err.Error(), ": "+name)
+		fmt.Printf("key not found: ", err.Error(), ": "+name)
 	}
 
 	return key
@@ -49,7 +50,7 @@ func (ks *MongoStore) enqueueSenz(qSenz *Senz) {
 	var coll = sessionCopy.DB(mongoConfig.mongoDb).C(mongoConfig.senzColl)
 	err := coll.Insert(qSenz)
 	if err != nil {
-		fmt.Println("Error enque senz: ", err.Error())
+		log.Printf("Error enque senz: ", err.Error())
 	}
 }
 
@@ -63,13 +64,13 @@ func (ks *MongoStore) dequeueSenzById(uid string) *Senz {
 	qSenz := &Senz{}
 	gErr := coll.Find(bson.M{"uid": uid}).One(qSenz)
 	if gErr != nil {
-		fmt.Println("No deque senz uid: ", uid)
+		log.Printf("No deque senz uid: ", uid)
 	}
 
 	// then remove
 	rErr := coll.Remove(bson.M{"uid": uid})
 	if rErr != nil {
-		fmt.Println("No remove senz uid: ", uid)
+		log.Printf("No remove senz uid: ", uid)
 	}
 
 	return qSenz
@@ -81,13 +82,13 @@ func (ks *MongoStore) dequeueSenzByReceiver(receiver string) []Senz {
 
 	var coll = sessionCopy.DB(mongoConfig.mongoDb).C(mongoConfig.senzColl)
 
-	fmt.Println("dequeuing senz of : ", receiver)
+	log.Printf("dequeuing senz of : ", receiver)
 
 	// get
 	var qSenzes []Senz
 	gErr := coll.Find(bson.M{"receiver": receiver}).All(&qSenzes)
 	if gErr != nil {
-		fmt.Println("Error deque senz: ", gErr.Error())
+		log.Printf("Error deque senz: ", gErr.Error())
 	}
 
 	// senz id to delete
@@ -99,7 +100,7 @@ func (ks *MongoStore) dequeueSenzByReceiver(receiver string) []Senz {
 	// then remove all
 	_, rErr := coll.RemoveAll(bson.M{"uid": bson.M{"$in": dSenzes}})
 	if rErr != nil {
-		fmt.Println("Error remove key: ", rErr.Error())
+		log.Printf("Error remove key: ", rErr.Error())
 	}
 
 	return qSenzes

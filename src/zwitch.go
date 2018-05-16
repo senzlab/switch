@@ -54,7 +54,7 @@ func main() {
 	// setup apn push setup
 	apnCert, err := certificate.FromP12File("apn.p12", "")
 	if err != nil {
-		log.Fatal("APN cert load Error:", err)
+		log.Printf("APN cert load Error:", err)
 	}
 	apnClient := apns2.NewClient(apnCert).Development()
 

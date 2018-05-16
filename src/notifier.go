@@ -11,24 +11,34 @@ import (
 	"net/http"
 )
 
-type Notification struct {
-	To   string `json:"to"`
-	Data string `json:"data"`
+type AndroidNotification struct {
+	Senz string `json:"senz"`
 }
 
-func notifa(to string, msg string) error {
+type AppleNotification struct {
+	Title string
+	Type  string
+	Senz  string
+}
+
+type Notification struct {
+	To   string              `json:"to"`
+	Data AndroidNotification `json:"data"`
+}
+
+func notifa(token string, an AndroidNotification) error {
 	// marshel notification
 	notification := Notification{
-		To:   to,
-		Data: msg,
+		To:   token,
+		Data: an,
 	}
 	j, _ := json.Marshal(notification)
-	println(string(j[:]))
+	log.Printf(string(j[:]))
 
 	// request
 	req, err := http.NewRequest("POST", fcmConfig.api, bytes.NewBuffer(j))
 	if err != nil {
-		println(err.Error)
+		log.Printf("Error init fcm request: ", err.Error)
 		return err
 	}
 
@@ -41,33 +51,32 @@ func notifa(to string, msg string) error {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		println(err.Error)
+		log.Printf("Error send fcm request: ", err.Error)
 		return err
 	}
 	defer resp.Body.Close()
-
 	b, _ := ioutil.ReadAll(resp.Body)
-	println(resp.StatusCode)
-	println(string(b))
 
 	if resp.StatusCode != 200 {
-		println("invalid response")
+		log.Printf("fail notifa: ", resp.StatusCode, string(b))
 		return errors.New("Invalid response")
 	}
+
+	log.Printf("success notifa response ", string(b))
 
 	return nil
 }
 
-func notifi(client *apns2.Client, token string, key string, z string) {
+func notifi(client *apns2.Client, token string, an AppleNotification) {
 	notification := &apns2.Notification{}
 	notification.DeviceToken = token
-	notification.Topic = "com.creative.igift"
-	payload := payload.NewPayload().Alert("New iGift").Badge(1).Custom("senz_connect", z)
+	notification.Topic = apnConfig.topic
+	payload := payload.NewPayload().Alert(an.Title).Badge(1).Custom(an.Type, an.Senz)
 	notification.Payload = payload
 
 	res, err := client.Push(notification)
 	if err != nil {
-		log.Fatal("Error:", err)
+		log.Printf("Error:", err)
 	}
 
 	log.Printf("%v %v %v\n", res.StatusCode, res.ApnsID, res.Reason)

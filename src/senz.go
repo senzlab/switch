@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"encoding/json"
-	"fmt"
 	"github.com/sideshow/apns2"
 	"github.com/sideshow/apns2/certificate"
 	"gopkg.in/mgo.v2"
@@ -15,8 +14,6 @@ import (
 )
 
 type Senzie struct {
-	name   string
-	id     string
 	reader *bufio.Reader
 	writer *bufio.Writer
 	conn   net.Conn
@@ -59,7 +56,7 @@ func main() {
 	// db setup
 	session, err := mgo.Dial(mongoConfig.mongoHost)
 	if err != nil {
-		fmt.Println("Error connecting mongo: ", err.Error())
+		log.Printf("Error connecting mongo: ", err.Error())
 		return
 	}
 	defer session.Close()
@@ -72,29 +69,28 @@ func main() {
 	// setup apn push setup
 	apnCert, err := certificate.FromP12File(apnConfig.certificate, "")
 	if err != nil {
-		log.Fatal("APN cert load Error:", err)
+		log.Printf("APN cert load Error:", err)
 	}
 	apnClient = apns2.NewClient(apnCert).Development()
 
 	// listen for incoming conns
 	listener, err := net.Listen("tcp", ":"+config.switchPort)
 	if err != nil {
-		fmt.Println("Error listening:", err.Error())
+		log.Printf("Error listening:", err.Error())
 		return
 	}
 	defer listener.Close()
-
-	// listeneing
 	listening(listener)
 }
 
 func listening(listener net.Listener) {
 LISTENER:
+	// listeneing
 	for {
 		// handle new connections
 		conn, err := listener.Accept()
 		if err != nil {
-			fmt.Println("Error accepting: ", err.Error())
+			log.Printf("Error accepting: ", err.Error())
 			continue LISTENER
 		}
 
@@ -110,62 +106,58 @@ LISTENER:
 }
 
 func reading(senzie *Senzie) {
-READER:
-	for {
-		msg, err := senzie.reader.ReadString(';')
-		if err != nil {
-			fmt.Println("Error reading: ", err.Error())
-			senzie.conn.Close()
-			break READER
-		}
-
-		// parse senz and handle it
-		senz, err := parse(msg)
-		if err != nil {
-			fmt.Println("Error senz: ", err.Error())
-			senzie.conn.Close()
-			break READER
-		}
-
-		println("received: " + msg)
-
-		if senz.Receiver == config.switchName {
-			// this could be
-			// 1. reg senz
-			// 2. fetch senz
-			// 3. connect senz
-			if senz.Ztype == "PUT" {
-				handleReg(senzie, senz)
-				senzie.conn.Close()
-				break READER
-			}
-
-			if senz.Ztype == "GET" {
-				// this is fetch
-				handleFetch(senzie, senz)
-				senzie.conn.Close()
-				break READER
-			}
-
-			if senz.Ztype == "SHARE" {
-				// this is connect
-				handleConnect(senzie, senz)
-				senzie.conn.Close()
-				break READER
-			}
-		}
-
-		if senz.Receiver == chainzConfig.name {
-			// this if for chainz
-			handlePromize(senzie, senz)
-			senzie.conn.Close()
-			break READER
-		}
-
-		// heare means invalid senzes
+	msg, err := senzie.reader.ReadString(';')
+	if err != nil {
+		log.Printf("Error reading: ", err.Error())
 		senzie.conn.Close()
-		break READER
+		return
 	}
+
+	// parse senz and handle it
+	senz, err := parse(msg)
+	if err != nil {
+		log.Printf("Error senz: ", err.Error())
+		senzie.conn.Close()
+		return
+	}
+
+	log.Printf("received senz: ", msg)
+
+	if senz.Receiver == config.switchName {
+		// this could be
+		// 1. reg senz
+		// 2. fetch senz
+		// 3. connect senz
+		if senz.Ztype == "PUT" {
+			handleReg(senzie, senz)
+			senzie.conn.Close()
+			return
+		}
+
+		if senz.Ztype == "GET" {
+			// this is fetch
+			handleFetch(senzie, senz)
+			senzie.conn.Close()
+			return
+		}
+
+		if senz.Ztype == "SHARE" {
+			// this is connect
+			handleConnect(senzie, senz)
+			senzie.conn.Close()
+			return
+		}
+	}
+
+	if senz.Receiver == chainzConfig.name {
+		// this if for chainz
+		handlePromize(senzie, senz)
+		senzie.conn.Close()
+		return
+	}
+
+	// heare means invalid senzes
+	senzie.conn.Close()
 }
 
 func handleReg(senzie *Senzie, senz *Senz) {
@@ -215,10 +207,10 @@ func handleReg(senzie *Senzie, senz *Senz) {
 func handleFetch(senzie *Senzie, senz *Senz) {
 	// verify signature first of all
 	payload := strings.Replace(senz.Msg, senz.Digsig, "", -1)
-	senzieKey := getSenzieRsaPub(mongoStore.getKey(senzie.name).Value)
+	senzieKey := getSenzieRsaPub(mongoStore.getKey(senz.Sender).Value)
 	err := verify(payload, senz.Digsig, senzieKey)
 	if err != nil {
-		println("cannot verify signarue, so dorp the conneciton")
+		log.Printf("cannot verify signarue, so dorp the conneciton")
 		return
 	}
 
@@ -226,6 +218,7 @@ func handleFetch(senzie *Senzie, senz *Senz) {
 	rKey := mongoStore.getKey(senz.Receiver)
 	if rKey.Value == "" {
 		// no reciver exists
+		log.Printf("not receiver: ", senz.Receiver)
 		return
 	}
 
@@ -233,7 +226,7 @@ func handleFetch(senzie *Senzie, senz *Senz) {
 	qSenz := mongoStore.dequeueSenzById(senz.Attr["uid"])
 	if qSenz.Receiver != senz.Sender {
 		// not authorized
-		println("not authorized to get blob")
+		log.Printf("not authorized to get blob")
 		return
 	}
 
@@ -241,20 +234,22 @@ func handleFetch(senzie *Senzie, senz *Senz) {
 	bz := blobSenz(qSenz.Attr["blob"], qSenz.Attr["uid"], senz.Sender)
 	senzie.writer.WriteString(bz + ";")
 	senzie.writer.Flush()
+
+	return
 }
 
 func handleConnect(senzie *Senzie, senz *Senz) {
 	// verify signature first of all
 	payload := strings.Replace(senz.Msg, senz.Digsig, "", -1)
-	senzieKey := getSenzieRsaPub(mongoStore.getKey(senzie.name).Value)
+	senzieKey := getSenzieRsaPub(mongoStore.getKey(senz.Sender).Value)
 	err := verify(payload, senz.Digsig, senzieKey)
 	if err != nil {
-		println("cannot verify signarue, so dorp the conneciton")
+		log.Printf("cannot verify signarue, so dorp the conneciton")
 		return
 	}
 
 	// check receiver exists
-	rKey := mongoStore.getKey(senz.Receiver)
+	rKey := mongoStore.getKey(senz.Attr["to"])
 	if rKey.Value == "" {
 		// no reciver exists
 		return
@@ -265,11 +260,9 @@ func handleConnect(senzie *Senzie, senz *Senz) {
 	to := rKey.DeviceId
 	nz := notifyConnectSenz(senz)
 	if rKey.Device == "android" {
-		// android
-		notifa(to, nz)
+		notifa(to, AndroidNotification{nz})
 	} else {
-		// apple
-		notifi(apnClient, to, "senz_connect", nz)
+		notifi(apnClient, to, AppleNotification{"New contact", "senz_connect", nz})
 	}
 
 	// success response
@@ -281,10 +274,10 @@ func handleConnect(senzie *Senzie, senz *Senz) {
 func handlePromize(senzie *Senzie, senz *Senz) {
 	// verify signature first of all
 	payload := strings.Replace(senz.Msg, senz.Digsig, "", -1)
-	senzieKey := getSenzieRsaPub(mongoStore.getKey(senzie.name).Value)
+	senzieKey := getSenzieRsaPub(mongoStore.getKey(senz.Sender).Value)
 	err := verify(payload, senz.Digsig, senzieKey)
 	if err != nil {
-		println("cannot verify signarue, so dorp the conneciton")
+		log.Printf("cannot verify signarue, so dorp the conneciton")
 		return
 	}
 
@@ -318,10 +311,9 @@ func handlePromize(senzie *Senzie, senz *Senz) {
 			to := rKey.DeviceId
 			nz := notifyPromizeSenz(z)
 			if rKey.Device == "android" {
-				notifa(to, nz)
+				notifa(to, AndroidNotification{nz})
 			} else {
-				// apple
-				notifi(apnClient, to, "senz_igift", nz)
+				notifi(apnClient, to, AppleNotification{"New iGift", "senz_igift", nz})
 			}
 		}
 	}
