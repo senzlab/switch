@@ -179,7 +179,8 @@ func notifyPromizeSenz(senz *Senz) string {
 		" #from " + senz.Attr["from"] +
 		" @" + senz.Receiver +
 		" ^" + config.switchName
-	s, _ := sign(z, getIdRsa())
+	//s, _ := sign(z, getIdRsa())
+	s := "DIGSIG"
 	sz := z + " " + s
 	return sz
 }
@@ -190,7 +191,8 @@ func notifyConnectSenz(senz *Senz) string {
 		" #from " + senz.Sender +
 		" @" + senz.Receiver +
 		" ^" + config.switchName
-	s, _ := sign(z, getIdRsa())
+	//s, _ := sign(z, getIdRsa())
+	s := "DIGSIG"
 	sz := z + " " + s
 	return sz
 }

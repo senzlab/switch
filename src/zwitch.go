@@ -4,9 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
+	"github.com/sideshow/apns2"
+	"github.com/sideshow/apns2/certificate"
 	"gopkg.in/mgo.v2"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -46,6 +49,13 @@ func main() {
 
 	// init key pair
 	setUpKeys()
+
+	// setup apn push setup
+	apnCert, err := certificate.FromP12File("apn.p12", "")
+	if err != nil {
+		log.Fatal("APN cert load Error:", err)
+	}
+	apnClient := apns2.NewClient(apnCert).Development()
 
 	// router
 	r := mux.NewRouter()
@@ -113,17 +123,21 @@ func postPromize(w http.ResponseWriter, r *http.Request) {
 			// enqueu promizes
 			mongoStore.enqueueSenz(z)
 
-			// check receiver exists
-			// TODO
 			// get device id from mongo store key
 			// send push notification to reciver
 			rKey := mongoStore.getKey(z.Receiver)
 			to := rKey.DeviceId
-			senzMsg := SenzMsg{
-				Uid: z.Attr["uid"],
-				Msg: notifyPromizeSenz(z),
+			nz := notifyPromizeSenz(z)
+			if rKey.Device == "android" {
+				senzMsg := SenzMsg{
+					Uid: z.Attr["uid"],
+					Msg: nz,
+				}
+				notifa(to, senzMsg)
+			} else {
+				// apple
+				notifi(apnClient, to, "senz_igift", z)
 			}
-			notify(to, senzMsg)
 		}
 	}
 
@@ -215,7 +229,8 @@ func postUzer(w http.ResponseWriter, r *http.Request) {
 		key := Key{
 			Name:     senz.Sender,
 			Value:    senz.Attr["pubkey"],
-			DeviceId: senz.Attr["did"],
+			Device:   senz.Attr["dev"],
+			DeviceId: senz.Attr["devid"],
 		}
 		mongoStore.putKey(&key)
 
@@ -306,11 +321,18 @@ func postConnection(w http.ResponseWriter, r *http.Request) {
 	// get device id from mongo store key
 	// send push notification to reciver
 	to := rKey.DeviceId
-	senzMsg = SenzMsg{
-		Uid: senz.Attr["uid"],
-		Msg: notifyConnectSenz(senz),
+	cz := notifyConnectSenz(senz)
+	if rKey.Device == "android" {
+		// android
+		senzMsg = SenzMsg{
+			Uid: senz.Attr["uid"],
+			Msg: z,
+		}
+		notifa(to, senzMsg)
+	} else {
+		// apple
+		notifi(apnClient, to, "senz_connect", z)
 	}
-	notify(to, senzMsg)
 
 	// success response
 	successResponse(w, senz.Attr["uid"], senz.Sender)

@@ -4,7 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"github.com/sideshow/apns2"
+	"github.com/sideshow/apns2/payload"
 	"io/ioutil"
+	"log"
 	"net/http"
 )
 
@@ -13,7 +16,7 @@ type Notification struct {
 	Data SenzMsg `json:"data"`
 }
 
-func notify(to string, msg SenzMsg) error {
+func notifa(to string, msg SenzMsg) error {
 	// marshel notification
 	notification := Notification{
 		To:   to,
@@ -53,4 +56,19 @@ func notify(to string, msg SenzMsg) error {
 	}
 
 	return nil
+}
+
+func notifi(client *apns2.Client, token string, key string, z string) {
+	notification := &apns2.Notification{}
+	notification.DeviceToken = token
+	notification.Topic = "com.creative.igift"
+	payload := payload.NewPayload().Alert("New iGift").Badge(1).Custom("senz_connect", z)
+	notification.Payload = payload
+
+	res, err := client.Push(notification)
+	if err != nil {
+		log.Fatal("Error:", err)
+	}
+
+	log.Printf("%v %v %v\n", res.StatusCode, res.ApnsID, res.Reason)
 }
