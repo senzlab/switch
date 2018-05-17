@@ -214,14 +214,6 @@ func handleFetch(senzie *Senzie, senz *Senz) {
 		return
 	}
 
-	// check receiver exists
-	rKey := mongoStore.getKey(senz.Receiver)
-	if rKey.Value == "" {
-		// no reciver exists
-		log.Printf("not receiver: ", senz.Receiver)
-		return
-	}
-
 	// get senz
 	qSenz := mongoStore.dequeueSenzById(senz.Attr["uid"])
 	if qSenz.Receiver != senz.Sender {
