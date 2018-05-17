@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"github.com/sideshow/apns2"
 	"github.com/sideshow/apns2/certificate"
 	"gopkg.in/mgo.v2"
@@ -113,6 +114,8 @@ func reading(senzie *Senzie) {
 		return
 	}
 
+	log.Printf("received senz: ", msg)
+
 	// parse senz and handle it
 	senz, err := parse(msg)
 	if err != nil {
@@ -205,12 +208,9 @@ func handleReg(senzie *Senzie, senz *Senz) {
 }
 
 func handleFetch(senzie *Senzie, senz *Senz) {
-	// verify signature first of all
-	payload := strings.Replace(senz.Msg, senz.Digsig, "", -1)
-	senzieKey := getSenzieRsaPub(mongoStore.getKey(senz.Sender).Value)
-	err := verify(payload, senz.Digsig, senzieKey)
+	// verify senz first
+	err := verifySenz(senz)
 	if err != nil {
-		log.Printf("cannot verify signarue, so dorp the conneciton")
 		return
 	}
 
@@ -231,12 +231,9 @@ func handleFetch(senzie *Senzie, senz *Senz) {
 }
 
 func handleConnect(senzie *Senzie, senz *Senz) {
-	// verify signature first of all
-	payload := strings.Replace(senz.Msg, senz.Digsig, "", -1)
-	senzieKey := getSenzieRsaPub(mongoStore.getKey(senz.Sender).Value)
-	err := verify(payload, senz.Digsig, senzieKey)
+	// verify senz first
+	err := verifySenz(senz)
 	if err != nil {
-		log.Printf("cannot verify signarue, so dorp the conneciton")
 		return
 	}
 
@@ -264,12 +261,9 @@ func handleConnect(senzie *Senzie, senz *Senz) {
 }
 
 func handlePromize(senzie *Senzie, senz *Senz) {
-	// verify signature first of all
-	payload := strings.Replace(senz.Msg, senz.Digsig, "", -1)
-	senzieKey := getSenzieRsaPub(mongoStore.getKey(senz.Sender).Value)
-	err := verify(payload, senz.Digsig, senzieKey)
+	// verify senz first
+	err := verifySenz(senz)
 	if err != nil {
-		log.Printf("cannot verify signarue, so dorp the conneciton")
 		return
 	}
 
@@ -309,4 +303,22 @@ func handlePromize(senzie *Senzie, senz *Senz) {
 			}
 		}
 	}
+}
+
+func verifySenz(senz *Senz) error {
+	payload := strings.Replace(senz.Msg, senz.Digsig, "", -1)
+	key := mongoStore.getKey(senz.Sender)
+	if key.Value == "" {
+		log.Printf("cannot verify signarue, no key found")
+		return errors.New("No senzie key found")
+	}
+
+	senzieKey := getSenzieRsaPub(key.Value)
+	err := verify(payload, senz.Digsig, senzieKey)
+	if err != nil {
+		log.Printf("cannot verify signarue, so dorp the conneciton")
+		return errors.New("Cannot verify signature")
+	}
+
+	return nil
 }
