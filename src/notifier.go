@@ -77,7 +77,7 @@ func notifi(client *apns2.Client, token string, an AppleNotification) {
 	res, err := client.Push(notification)
 	if err != nil {
 		log.Printf("Error:", err)
+	} else {
+		log.Printf("%v %v %v\n", res.StatusCode, res.ApnsID, res.Reason)
 	}
-
-	log.Printf("%v %v %v\n", res.StatusCode, res.ApnsID, res.Reason)
 }
