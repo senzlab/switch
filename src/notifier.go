@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"github.com/sideshow/apns2"
-	"github.com/sideshow/apns2/payload"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -15,22 +13,28 @@ type AndroidNotification struct {
 	Senz string `json:"senz"`
 }
 
-type AppleNotification struct {
-	Title string
-	Type  string
-	Senz  string
-}
-
-type Notification struct {
+type FcmAndroid struct {
 	To   string              `json:"to"`
 	Data AndroidNotification `json:"data"`
 }
 
-func notifa(token string, an AndroidNotification) error {
+type AppleNotification struct {
+	Title string `json:"title"`
+	Body  string `json:"body"`
+	Senz  string `json:"senz"`
+}
+
+type FcmApple struct {
+	To               string            `json:"to"`
+	ContentAvailable bool              `json:"content_available"`
+	Notification     AppleNotification `json:"notification"`
+}
+
+func notifa(token string, n AndroidNotification) error {
 	// marshel notification
-	notification := Notification{
+	notification := FcmAndroid{
 		To:   token,
-		Data: an,
+		Data: n,
 	}
 	j, _ := json.Marshal(notification)
 	log.Printf(string(j[:]))
@@ -51,7 +55,8 @@ func notifa(token string, an AndroidNotification) error {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Printf("Error send fcm request: ", err.Error)
+		println(err.Error())
+		log.Printf("Error send fcm request: ", err.Error())
 		return err
 	}
 	defer resp.Body.Close()
@@ -67,17 +72,45 @@ func notifa(token string, an AndroidNotification) error {
 	return nil
 }
 
-func notifi(client *apns2.Client, token string, an AppleNotification) {
-	notification := &apns2.Notification{}
-	notification.DeviceToken = token
-	notification.Topic = apnConfig.topic
-	payload := payload.NewPayload().Alert(an.Title).Badge(1).Custom(an.Type, an.Senz)
-	notification.Payload = payload
-
-	res, err := client.Push(notification)
-	if err != nil {
-		log.Printf("Error:", err)
-	} else {
-		log.Printf("%v %v %v\n", res.StatusCode, res.ApnsID, res.Reason)
+func notifi(token string, n AppleNotification) error {
+	// marshel notification
+	notification := FcmApple{
+		To:               token,
+		ContentAvailable: true,
+		Notification:     n,
 	}
+	j, _ := json.Marshal(notification)
+	log.Printf(string(j[:]))
+
+	// request
+	req, err := http.NewRequest("POST", fcmConfig.api, bytes.NewBuffer(j))
+	if err != nil {
+		log.Printf("Error init fcm request: ", err.Error)
+		return err
+	}
+
+	// headers
+	key := "key=" + fcmConfig.serverKey
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Authorization", key)
+
+	// send request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		println(err.Error())
+		log.Printf("Error send fcm request: ", err.Error())
+		return err
+	}
+	defer resp.Body.Close()
+	b, _ := ioutil.ReadAll(resp.Body)
+
+	if resp.StatusCode != 200 {
+		log.Printf("fail notifi: ", resp.StatusCode, string(b))
+		return errors.New("Invalid response")
+	}
+
+	log.Printf("success notifi response ", string(b))
+
+	return nil
 }

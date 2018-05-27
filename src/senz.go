@@ -4,8 +4,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"errors"
-	"github.com/sideshow/apns2"
-	"github.com/sideshow/apns2/certificate"
 	"gopkg.in/mgo.v2"
 	"log"
 	"net"
@@ -50,7 +48,6 @@ const (
 var (
 	senzies    = map[string]*Senzie{}
 	mongoStore = &MongoStore{}
-	apnClient  *apns2.Client
 )
 
 func main() {
@@ -66,13 +63,6 @@ func main() {
 
 	// init key pair
 	setUpKeys()
-
-	// setup apn push setup
-	apnCert, err := certificate.FromP12File(apnConfig.certificate, "")
-	if err != nil {
-		log.Printf("APN cert load Error:", err)
-	}
-	apnClient = apns2.NewClient(apnCert).Development()
 
 	// listen for incoming conns
 	listener, err := net.Listen("tcp", ":"+config.switchPort)
@@ -251,7 +241,7 @@ func handleConnect(senzie *Senzie, senz *Senz) {
 	if rKey.Device == "android" {
 		notifa(to, AndroidNotification{nz})
 	} else {
-		notifi(apnClient, to, AppleNotification{"New contact", "senz_connect", nz})
+		notifi(to, AppleNotification{"New contact", "iGift contact request received", nz})
 	}
 
 	// success response
@@ -299,7 +289,7 @@ func handlePromize(senzie *Senzie, senz *Senz) {
 			if rKey.Device == "android" {
 				notifa(to, AndroidNotification{nz})
 			} else {
-				notifi(apnClient, to, AppleNotification{"New iGift", "senz_igift", nz})
+				notifi(to, AppleNotification{"New iGift", "New iGift received", nz})
 			}
 		}
 	}
