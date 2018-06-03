@@ -67,6 +67,8 @@ func notifa(token string, n AndroidNotification) error {
 		return errors.New("Invalid response")
 	}
 
+	// TODO parse response and check success=1
+
 	log.Printf("success notifa response ", string(b))
 
 	return nil
@@ -109,6 +111,8 @@ func notifi(token string, n AppleNotification) error {
 		log.Printf("fail notifi: ", resp.StatusCode, string(b))
 		return errors.New("Invalid response")
 	}
+
+	// TODO parse response and check success=1
 
 	log.Printf("success notifi response ", string(b))
 
