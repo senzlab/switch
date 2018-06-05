@@ -231,6 +231,10 @@ func handleConnect(senzie *Senzie, senz *Senz) {
 	rKey := mongoStore.getKey(senz.Attr["to"])
 	if rKey.Value == "" {
 		// no reciver exists
+		// error response
+		sz := statusSenz("404", senz.Attr["uid"], senz.Sender)
+		senzie.writer.WriteString(sz + ";")
+		senzie.writer.Flush()
 		return
 	}
 
@@ -245,7 +249,7 @@ func handleConnect(senzie *Senzie, senz *Senz) {
 	}
 
 	// success response
-	sz := statusSenz("SUCCESS", senz.Attr["uid"], senz.Sender)
+	sz := statusSenz("201", senz.Attr["uid"], senz.Sender)
 	senzie.writer.WriteString(sz + ";")
 	senzie.writer.Flush()
 }
