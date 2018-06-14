@@ -249,7 +249,7 @@ func handleConnect(senzie *Senzie, senz *Senz) {
 	}
 
 	// success response
-	sz := statusSenz("201", senz.Attr["uid"], senz.Sender)
+	sz := statusSenz("SUCCESS", senz.Attr["uid"], senz.Sender)
 	senzie.writer.WriteString(sz + ";")
 	senzie.writer.Flush()
 }
