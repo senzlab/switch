@@ -9,6 +9,7 @@ import (
 
 type Key struct {
 	Name     string
+	Password string
 	Value    string
 	Device   string
 	DeviceId string

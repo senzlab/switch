@@ -179,6 +179,7 @@ func handleReg(senzie *Senzie, senz *Senz) {
 		// 2. firebase/apn device id
 		key := Key{
 			Name:     senz.Sender,
+			Password: "lambda",
 			Value:    senz.Attr["pubkey"],
 			Device:   senz.Attr["dev"],
 			DeviceId: senz.Attr["devid"],
