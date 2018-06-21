@@ -69,10 +69,10 @@ func (ks *MongoStore) dequeueSenzById(uid string) *Senz {
 	}
 
 	// then remove
-	rErr := coll.Remove(bson.M{"uid": uid})
-	if rErr != nil {
-		log.Printf("No remove senz uid: ", uid)
-	}
+	//rErr := coll.Remove(bson.M{"uid": uid})
+	//if rErr != nil {
+	//	log.Printf("No remove senz uid: ", uid)
+	//}
 
 	return qSenz
 }
