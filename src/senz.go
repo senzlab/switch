@@ -26,6 +26,7 @@ type Senz struct {
 	Receiver string
 	Attr     map[string]string
 	Digsig   string
+	Status   string
 }
 
 type SenzMsg struct {
@@ -200,23 +201,33 @@ func handleReg(senzie *Senzie, senz *Senz) {
 
 func handleFetch(senzie *Senzie, senz *Senz) {
 	// verify senz first
-	err := verifySenz(senz)
-	if err != nil {
-		return
-	}
+	//err := verifySenz(senz)
+	//if err != nil {
+	//	return
+	//}
 
-	// get senz
-	qSenz := mongoStore.dequeueSenzById(senz.Attr["uid"])
-	if qSenz.Receiver != senz.Sender {
-		// not authorized
-		log.Printf("not authorized to get blob")
-		return
-	}
+	if uid, ok := senz.Attr["uid"]; ok {
+		// get senz
+		qSenz := mongoStore.dequeueSenzById(uid)
+		if qSenz.Receiver != senz.Sender {
+			// not authorized
+			log.Printf("not authorized to get blob")
+			return
+		}
 
-	// response blob
-	bz := blobSenz(qSenz.Attr["blob"], qSenz.Attr["uid"], senz.Sender)
-	senzie.writer.WriteString(bz + ";")
-	senzie.writer.Flush()
+		// response blob
+		bz := blobSenz(qSenz.Attr["blob"], qSenz.Attr["uid"], senz.Sender)
+		senzie.writer.WriteString(bz + ";")
+		senzie.writer.Flush()
+	} else {
+		// get all
+		qSenzes := mongoStore.dequeueSenzByReceiver(senz.Sender)
+		for _, z := range qSenzes {
+			bz := metaSenz(z, senz.Sender)
+			senzie.writer.WriteString(bz + ";")
+			senzie.writer.Flush()
+		}
+	}
 
 	return
 }
@@ -284,6 +295,7 @@ func handlePromize(senzie *Senzie, senz *Senz) {
 		} else {
 			// this means forwarding promize
 			// enqueu promizes
+			z.Status = "0"
 			mongoStore.enqueueSenz(z)
 
 			// get device id from mongo store key

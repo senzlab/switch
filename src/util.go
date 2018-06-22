@@ -172,6 +172,18 @@ func blobSenz(blob string, uid, to string) string {
 	return sz
 }
 
+func metaSenz(qSenz Senz, to string) string {
+	z := "DATA #amount " + qSenz.Attr["amnt"] +
+		" #uid " + qSenz.Attr["uid"] +
+		" #id " + qSenz.Attr["id"] +
+		" #from " + qSenz.Attr["from"] +
+		" @" + to +
+		" ^" + config.switchName
+	s, _ := sign(z, getIdRsa())
+	sz := z + " " + s
+	return sz
+}
+
 func notifyPromizeSenz(senz *Senz) string {
 	z := "DATA #uid " + senz.Attr["uid"] +
 		" #id " + senz.Attr["id"] +

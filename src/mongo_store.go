@@ -63,16 +63,16 @@ func (ks *MongoStore) dequeueSenzById(uid string) *Senz {
 
 	// get
 	qSenz := &Senz{}
-	gErr := coll.Find(bson.M{"uid": uid}).One(qSenz)
-	if gErr != nil {
+	err := coll.Find(bson.M{"uid": uid}).One(qSenz)
+	if err != nil {
 		log.Printf("No deque senz uid: ", uid)
 	}
 
-	// then remove
-	//rErr := coll.Remove(bson.M{"uid": uid})
-	//if rErr != nil {
-	//	log.Printf("No remove senz uid: ", uid)
-	//}
+	// then update delivery status
+	err = coll.Update(bson.M{"uid": uid}, bson.M{"$set": bson.M{"status": "1"}})
+	if err != nil {
+		log.Printf("Error update delivevery state uid: ", uid)
+	}
 
 	return qSenz
 }
@@ -87,21 +87,9 @@ func (ks *MongoStore) dequeueSenzByReceiver(receiver string) []Senz {
 
 	// get
 	var qSenzes []Senz
-	gErr := coll.Find(bson.M{"receiver": receiver}).All(&qSenzes)
-	if gErr != nil {
-		log.Printf("Error deque senz: ", gErr.Error())
-	}
-
-	// senz id to delete
-	var dSenzes []string
-	for _, z := range qSenzes {
-		dSenzes = append(dSenzes, z.Uid)
-	}
-
-	// then remove all
-	_, rErr := coll.RemoveAll(bson.M{"uid": bson.M{"$in": dSenzes}})
-	if rErr != nil {
-		log.Printf("Error remove key: ", rErr.Error())
+	err := coll.Find(bson.M{"$and": []bson.M{{"receiver": receiver}, {"status": "0"}}}).All(&qSenzes)
+	if err != nil {
+		log.Printf("Error deque senz: ", err.Error())
 	}
 
 	return qSenzes
