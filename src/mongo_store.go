@@ -87,7 +87,8 @@ func (ks *MongoStore) dequeueSenzByReceiver(receiver string) []Senz {
 
 	// get
 	var qSenzes []Senz
-	err := coll.Find(bson.M{"$and": []bson.M{{"receiver": receiver}, {"status": "0"}}}).All(&qSenzes)
+	err := coll.Find(bson.M{"$and": []bson.M{{"receiver": receiver}, {"status": "0"}}}).
+		Select(bson.M{"uid": 1, "attr": 1}).All(&qSenzes)
 	if err != nil {
 		log.Printf("Error deque senz: ", err.Error())
 	}

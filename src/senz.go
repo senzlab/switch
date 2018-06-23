@@ -201,12 +201,20 @@ func handleReg(senzie *Senzie, senz *Senz) {
 
 func handleFetch(senzie *Senzie, senz *Senz) {
 	// verify senz first
-	//err := verifySenz(senz)
-	//if err != nil {
-	//	return
-	//}
+	err := verifySenz(senz)
+	if err != nil {
+		return
+	}
 
-	if uid, ok := senz.Attr["uid"]; ok {
+	if uid, ok := senz.Attr["senzes"]; ok {
+		// get all unfetched senzes
+		qSenzes := mongoStore.dequeueSenzByReceiver(senz.Sender)
+		for _, z := range qSenzes {
+			bz := metaSenz(z, senz.Sender)
+			senzie.writer.WriteString(bz + ";")
+			senzie.writer.Flush()
+		}
+	} else {
 		// get senz
 		qSenz := mongoStore.dequeueSenzById(uid)
 		if qSenz.Receiver != senz.Sender {
@@ -219,14 +227,6 @@ func handleFetch(senzie *Senzie, senz *Senz) {
 		bz := blobSenz(qSenz.Attr["blob"], qSenz.Attr["uid"], senz.Sender)
 		senzie.writer.WriteString(bz + ";")
 		senzie.writer.Flush()
-	} else {
-		// get all
-		qSenzes := mongoStore.dequeueSenzByReceiver(senz.Sender)
-		for _, z := range qSenzes {
-			bz := metaSenz(z, senz.Sender)
-			senzie.writer.WriteString(bz + ";")
-			senzie.writer.Flush()
-		}
 	}
 
 	return

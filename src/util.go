@@ -173,7 +173,7 @@ func blobSenz(blob string, uid, to string) string {
 }
 
 func metaSenz(qSenz Senz, to string) string {
-	z := "DATA #amount " + qSenz.Attr["amnt"] +
+	z := "DATA #amnt " + qSenz.Attr["amnt"] +
 		" #uid " + qSenz.Attr["uid"] +
 		" #id " + qSenz.Attr["id"] +
 		" #from " + qSenz.Attr["from"] +
