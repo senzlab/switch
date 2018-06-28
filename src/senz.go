@@ -206,7 +206,7 @@ func handleFetch(senzie *Senzie, senz *Senz) {
 		return
 	}
 
-	if uid, ok := senz.Attr["senzes"]; ok {
+	if _, ok := senz.Attr["senzes"]; ok {
 		// get all unfetched senzes
 		qSenzes := mongoStore.dequeueSenzByReceiver(senz.Sender)
 		for _, z := range qSenzes {
@@ -216,7 +216,7 @@ func handleFetch(senzie *Senzie, senz *Senz) {
 		}
 	} else {
 		// get senz
-		qSenz := mongoStore.dequeueSenzById(uid)
+		qSenz := mongoStore.dequeueSenzById(senz.Attr["uid"])
 		if qSenz.Receiver != senz.Sender {
 			// not authorized
 			log.Printf("not authorized to get blob")
