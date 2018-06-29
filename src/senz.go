@@ -195,6 +195,9 @@ func handleReg(senzie *Senzie, senz *Senz) {
 		return
 	} else {
 		// this means already registered senzie
+		sz := statusSenz("403", senz.Attr["uid"], senz.Sender)
+		senzie.writer.WriteString(sz + ";")
+		senzie.writer.Flush()
 		return
 	}
 }
