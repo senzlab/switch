@@ -1,22 +1,17 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
 	"errors"
+	"github.com/gorilla/mux"
 	"gopkg.in/mgo.v2"
+	"io"
+	"io/ioutil"
 	"log"
-	"net"
 	"net/http"
+	"os"
 	"strings"
-	"time"
 )
-
-type Senzie struct {
-	reader *bufio.Reader
-	writer *bufio.Writer
-	conn   net.Conn
-}
 
 type Senz struct {
 	Msg      string
@@ -34,22 +29,8 @@ type SenzMsg struct {
 	Msg string
 }
 
-// constants
-// 1. buffer size
-// 2. socket read timeout
-const (
-	bufSize     = 16 * 1024
-	readTimeout = 30 * time.Minute
-)
-
-// global
-// 1. connected senzies
-// 2. mongo store
-// 3. apn client
-var (
-	senzies    = map[string]*Senzie{}
-	mongoStore = &MongoStore{}
-)
+// mongo store
+var mongoStore = &MongoStore{}
 
 func main() {
 	// db setup
@@ -66,56 +47,39 @@ func main() {
 	setUpKeys()
 
 	// listen for incoming conns
-	listener, err := net.Listen("tcp", ":"+config.switchPort)
-	if err != nil {
-		log.Printf("Error listening:", err.Error())
-		return
-	}
-	defer listener.Close()
-	listening(listener)
+	initHttpz()
 }
 
-func listening(listener net.Listener) {
-LISTENER:
-	// listeneing
-	for {
-		// handle new connections
-		conn, err := listener.Accept()
-		if err != nil {
-			log.Printf("Error accepting: ", err.Error())
-			continue LISTENER
-		}
+func initHttpz() {
+	// router
+	r := mux.NewRouter()
+	r.HandleFunc("/api/v1/contractz", contractz).Methods("POST")
 
-		// new senzie
-		senzie := &Senzie{
-			reader: bufio.NewReaderSize(conn, bufSize),
-			writer: bufio.NewWriterSize(conn, bufSize),
-			conn:   conn,
-		}
-
-		go reading(senzie)
+	// start server
+	err := http.ListenAndServe(":7171", r)
+	if err != nil {
+		log.Printf("Error init httpz: ", err.Error())
+		os.Exit(1)
 	}
 }
 
-func reading(senzie *Senzie) {
-	msg, err := senzie.reader.ReadString(';')
-	if err != nil {
-		log.Printf("Error reading: ", err.Error())
-		senzie.conn.Close()
-		return
-	}
+func contractz(w http.ResponseWriter, r *http.Request) {
+	// read body
+	b, _ := ioutil.ReadAll(r.Body)
+	defer r.Body.Close()
 
-	log.Printf("received senz: ", msg)
+	log.Printf("received senz: ", string(b))
 
-	// parse senz and handle it
-	senz, err := parse(msg)
+	// unmarshel json and parse senz
+	var zmsg SenzMsg
+	json.Unmarshal(b, &zmsg)
+	senz, err := parse(zmsg.Msg)
 	if err != nil {
 		log.Printf("Error senz: ", err.Error())
-		senzie.conn.Close()
+
+		// error response
 		return
 	}
-
-	log.Printf("received senz: ", msg)
 
 	if senz.Receiver == config.switchName {
 		// this could be
@@ -123,38 +87,31 @@ func reading(senzie *Senzie) {
 		// 2. fetch senz
 		// 3. connect senz
 		if senz.Ztype == "PUT" {
-			handleReg(senzie, senz)
-			senzie.conn.Close()
+			handleReg(w, senz)
 			return
 		}
 
 		if senz.Ztype == "GET" {
 			// this is fetch
-			handleFetch(senzie, senz)
-			senzie.conn.Close()
+			handleFetch(w, senz)
 			return
 		}
 
 		if senz.Ztype == "SHARE" {
 			// this is connect
-			handleConnect(senzie, senz)
-			senzie.conn.Close()
+			handleConnect(w, senz)
 			return
 		}
 	}
 
 	if senz.Receiver == chainzConfig.name {
 		// this if for chainz
-		handlePromize(senzie, senz)
-		senzie.conn.Close()
+		handlePromize(w, senz)
 		return
 	}
-
-	// heare means invalid senzes
-	senzie.conn.Close()
 }
 
-func handleReg(senzie *Senzie, senz *Senz) {
+func handleReg(w http.ResponseWriter, senz *Senz) {
 	// this is reg
 	// check weather user exists
 	key := mongoStore.getKey(senz.Sender)
@@ -172,6 +129,8 @@ func handleReg(senzie *Senzie, senz *Senz) {
 		// handle response
 		_, statusCode := post(senz)
 		if statusCode != http.StatusOK {
+			// error from bankz
+			statusResponse(w, senz.Attr["uid"], senz.Sender, "400")
 			return
 		}
 
@@ -187,55 +146,18 @@ func handleReg(senzie *Senzie, senz *Senz) {
 		}
 		mongoStore.putKey(&key)
 
-		// success response
-		sz := statusSenz("SUCCESS", senz.Attr["uid"], senz.Sender)
-		senzie.writer.WriteString(sz + ";")
-		senzie.writer.Flush()
+		// status response
+		statusResponse(w, senz.Attr["uid"], senz.Sender, "200")
 
 		return
 	} else {
 		// this means already registered senzie
-		sz := statusSenz("403", senz.Attr["uid"], senz.Sender)
-		senzie.writer.WriteString(sz + ";")
-		senzie.writer.Flush()
+		statusResponse(w, senz.Attr["uid"], senz.Sender, "403")
 		return
 	}
 }
 
-func handleFetch(senzie *Senzie, senz *Senz) {
-	// verify senz first
-	err := verifySenz(senz)
-	if err != nil {
-		return
-	}
-
-	if _, ok := senz.Attr["senzes"]; ok {
-		// get all unfetched senzes
-		qSenzes := mongoStore.dequeueSenzByReceiver(senz.Sender)
-		for _, z := range qSenzes {
-			bz := metaSenz(z, senz.Sender)
-			senzie.writer.WriteString(bz + ";")
-			senzie.writer.Flush()
-		}
-	} else {
-		// get senz
-		qSenz := mongoStore.dequeueSenzById(senz.Attr["uid"])
-		if qSenz.Receiver != senz.Sender {
-			// not authorized
-			log.Printf("not authorized to get blob")
-			return
-		}
-
-		// response blob
-		bz := blobSenz(qSenz.Attr["blob"], qSenz.Attr["uid"], senz.Sender)
-		senzie.writer.WriteString(bz + ";")
-		senzie.writer.Flush()
-	}
-
-	return
-}
-
-func handleConnect(senzie *Senzie, senz *Senz) {
+func handleConnect(w http.ResponseWriter, senz *Senz) {
 	// verify senz first
 	err := verifySenz(senz)
 	if err != nil {
@@ -247,9 +169,7 @@ func handleConnect(senzie *Senzie, senz *Senz) {
 	if rKey.Value == "" {
 		// no reciver exists
 		// error response
-		sz := statusSenz("404", senz.Attr["uid"], senz.Sender)
-		senzie.writer.WriteString(sz + ";")
-		senzie.writer.Flush()
+		statusResponse(w, senz.Attr["uid"], senz.Sender, "404")
 		return
 	}
 
@@ -264,12 +184,10 @@ func handleConnect(senzie *Senzie, senz *Senz) {
 	}
 
 	// success response
-	sz := statusSenz("SUCCESS", senz.Attr["uid"], senz.Sender)
-	senzie.writer.WriteString(sz + ";")
-	senzie.writer.Flush()
+	statusResponse(w, senz.Attr["uid"], senz.Sender, "200")
 }
 
-func handlePromize(senzie *Senzie, senz *Senz) {
+func handlePromize(w http.ResponseWriter, senz *Senz) {
 	// verify senz first
 	err := verifySenz(senz)
 	if err != nil {
@@ -279,6 +197,7 @@ func handlePromize(senzie *Senzie, senz *Senz) {
 	// post promize for chainz
 	b, statusCode := post(senz)
 	if statusCode != http.StatusOK {
+		statusResponse(w, senz.Attr["uid"], senz.Sender, "400")
 		return
 	}
 
@@ -292,9 +211,7 @@ func handlePromize(senzie *Senzie, senz *Senz) {
 		if z.Receiver == senz.Sender {
 			// this message for senz sender
 			// send success response back
-			sz := statusSenz("SUCCESS", senz.Attr["uid"], senz.Sender)
-			senzie.writer.WriteString(sz + ";")
-			senzie.writer.Flush()
+			statusResponse(w, senz.Attr["uid"], senz.Sender, "200")
 		} else {
 			// this means forwarding promize
 			// enqueu promizes
@@ -315,6 +232,46 @@ func handlePromize(senzie *Senzie, senz *Senz) {
 	}
 }
 
+func handleFetch(w http.ResponseWriter, senz *Senz) {
+	// verify senz first
+	err := verifySenz(senz)
+	if err != nil {
+		return
+	}
+
+	if _, ok := senz.Attr["senzes"]; ok {
+		// get all unfetched senzes
+		qSenzes := mongoStore.dequeueSenzByReceiver(senz.Sender)
+		var zmsgs []SenzMsg
+		for _, z := range qSenzes {
+			// append qsenz
+			zmsg := SenzMsg{
+				Uid: z.Attr["uid"],
+				Msg: metaSenz(z, senz.Sender),
+			}
+			zmsgs = append(zmsgs, zmsg)
+		}
+		fetchResponse(w, zmsgs)
+	} else {
+		// get senz
+		qSenz := mongoStore.dequeueSenzById(senz.Attr["uid"])
+		if qSenz.Receiver != senz.Sender {
+			// not authorized
+			log.Printf("not authorized to get blob")
+			return
+		}
+
+		// response blob
+		zmsg := SenzMsg{
+			Uid: qSenz.Attr["uid"],
+			Msg: blobSenz(qSenz.Attr["blob"], qSenz.Attr["uid"], senz.Sender),
+		}
+		var zmsgs []SenzMsg
+		zmsgs = append(zmsgs, zmsg)
+		fetchResponse(w, zmsgs)
+	}
+}
+
 func verifySenz(senz *Senz) error {
 	payload := strings.Replace(senz.Msg, senz.Digsig, "", -1)
 	key := mongoStore.getKey(senz.Sender)
@@ -331,4 +288,33 @@ func verifySenz(senz *Senz) error {
 	}
 
 	return nil
+}
+
+func errorResponse(w http.ResponseWriter, uid string, to string, status int) {
+	// marshel and return error
+	zmsg := SenzMsg{
+		Uid: uid,
+		Msg: statusSenz("ERROR", uid, to),
+	}
+	j, _ := json.Marshal(zmsg)
+	http.Error(w, string(j), status)
+}
+
+func statusResponse(w http.ResponseWriter, uid string, to string, status string) {
+	zmsg := SenzMsg{
+		Uid: uid,
+		Msg: statusSenz(status, uid, to),
+	}
+
+	j, _ := json.Marshal(zmsg)
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	io.WriteString(w, string(j))
+}
+
+func fetchResponse(w http.ResponseWriter, zmsgs []SenzMsg) {
+	j, _ := json.Marshal(zmsgs)
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	io.WriteString(w, string(j))
 }
