@@ -53,7 +53,7 @@ func main() {
 func initHttpz() {
 	// router
 	r := mux.NewRouter()
-	r.HandleFunc("/api/v1/contractz", contractz).Methods("POST")
+	r.HandleFunc("/igift/v1/contractz", contractz).Methods("POST")
 
 	// start server
 	err := http.ListenAndServe(":7171", r)
@@ -130,7 +130,11 @@ func handleReg(w http.ResponseWriter, senz *Senz) {
 		_, statusCode := post(senz)
 		if statusCode != http.StatusOK {
 			// error from bankz
-			statusResponse(w, senz.Attr["uid"], senz.Sender, "400")
+			zmsg := SenzMsg{
+				Uid: senz.Attr["uid"],
+				Msg: statusSenz("400", senz.Attr["uid"], senz.Sender),
+			}
+			responze(w, []SenzMsg{zmsg})
 			return
 		}
 
@@ -147,12 +151,20 @@ func handleReg(w http.ResponseWriter, senz *Senz) {
 		mongoStore.putKey(&key)
 
 		// status response
-		statusResponse(w, senz.Attr["uid"], senz.Sender, "200")
+		zmsg := SenzMsg{
+			Uid: senz.Attr["uid"],
+			Msg: statusSenz("200", senz.Attr["uid"], senz.Sender),
+		}
+		responze(w, []SenzMsg{zmsg})
 
 		return
 	} else {
 		// this means already registered senzie
-		statusResponse(w, senz.Attr["uid"], senz.Sender, "403")
+		zmsg := SenzMsg{
+			Uid: senz.Attr["uid"],
+			Msg: statusSenz("403", senz.Attr["uid"], senz.Sender),
+		}
+		responze(w, []SenzMsg{zmsg})
 		return
 	}
 }
@@ -169,7 +181,11 @@ func handleConnect(w http.ResponseWriter, senz *Senz) {
 	if rKey.Value == "" {
 		// no reciver exists
 		// error response
-		statusResponse(w, senz.Attr["uid"], senz.Sender, "404")
+		zmsg := SenzMsg{
+			Uid: senz.Attr["uid"],
+			Msg: statusSenz("404", senz.Attr["uid"], senz.Sender),
+		}
+		responze(w, []SenzMsg{zmsg})
 		return
 	}
 
@@ -184,7 +200,11 @@ func handleConnect(w http.ResponseWriter, senz *Senz) {
 	}
 
 	// success response
-	statusResponse(w, senz.Attr["uid"], senz.Sender, "200")
+	zmsg := SenzMsg{
+		Uid: senz.Attr["uid"],
+		Msg: statusSenz("200", senz.Attr["uid"], senz.Sender),
+	}
+	responze(w, []SenzMsg{zmsg})
 }
 
 func handlePromize(w http.ResponseWriter, senz *Senz) {
@@ -197,7 +217,11 @@ func handlePromize(w http.ResponseWriter, senz *Senz) {
 	// post promize for chainz
 	b, statusCode := post(senz)
 	if statusCode != http.StatusOK {
-		statusResponse(w, senz.Attr["uid"], senz.Sender, "400")
+		zmsg := SenzMsg{
+			Uid: senz.Attr["uid"],
+			Msg: statusSenz("400", senz.Attr["uid"], senz.Sender),
+		}
+		responze(w, []SenzMsg{zmsg})
 		return
 	}
 
@@ -211,7 +235,11 @@ func handlePromize(w http.ResponseWriter, senz *Senz) {
 		if z.Receiver == senz.Sender {
 			// this message for senz sender
 			// send success response back
-			statusResponse(w, senz.Attr["uid"], senz.Sender, "200")
+			zmsg := SenzMsg{
+				Uid: senz.Attr["uid"],
+				Msg: statusSenz("200", senz.Attr["uid"], senz.Sender),
+			}
+			responze(w, []SenzMsg{zmsg})
 		} else {
 			// this means forwarding promize
 			// enqueu promizes
@@ -251,7 +279,7 @@ func handleFetch(w http.ResponseWriter, senz *Senz) {
 			}
 			zmsgs = append(zmsgs, zmsg)
 		}
-		fetchResponse(w, zmsgs)
+		responze(w, zmsgs)
 	} else {
 		// get senz
 		qSenz := mongoStore.dequeueSenzById(senz.Attr["uid"])
@@ -268,7 +296,7 @@ func handleFetch(w http.ResponseWriter, senz *Senz) {
 		}
 		var zmsgs []SenzMsg
 		zmsgs = append(zmsgs, zmsg)
-		fetchResponse(w, zmsgs)
+		responze(w, zmsgs)
 	}
 }
 
@@ -290,16 +318,6 @@ func verifySenz(senz *Senz) error {
 	return nil
 }
 
-func errorResponse(w http.ResponseWriter, uid string, to string, status int) {
-	// marshel and return error
-	zmsg := SenzMsg{
-		Uid: uid,
-		Msg: statusSenz("ERROR", uid, to),
-	}
-	j, _ := json.Marshal(zmsg)
-	http.Error(w, string(j), status)
-}
-
 func statusResponse(w http.ResponseWriter, uid string, to string, status string) {
 	zmsg := SenzMsg{
 		Uid: uid,
@@ -312,7 +330,7 @@ func statusResponse(w http.ResponseWriter, uid string, to string, status string)
 	io.WriteString(w, string(j))
 }
 
-func fetchResponse(w http.ResponseWriter, zmsgs []SenzMsg) {
+func responze(w http.ResponseWriter, zmsgs []SenzMsg) {
 	j, _ := json.Marshal(zmsgs)
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")

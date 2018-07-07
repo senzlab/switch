@@ -162,8 +162,9 @@ func statusSenz(status string, uid string, to string) string {
 	return sz
 }
 
-func blobSenz(blob string, uid, to string) string {
+func blobSenz(blob string, uid string, to string) string {
 	z := "DATA #blob " + blob +
+		" #status " + "200" +
 		" #uid " + uid +
 		" @" + to +
 		" ^" + config.switchName
