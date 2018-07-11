@@ -17,6 +17,8 @@ type MongoConfig struct {
 	mongoHost string
 	mongoPort string
 	mongoDb   string
+	username  string
+	password  string
 	keyColl   string
 	senzColl  string
 }
@@ -51,6 +53,8 @@ var mongoConfig = MongoConfig{
 	mongoHost: getEnv("MONGO_HOST", "dev.localhost"),
 	mongoPort: getEnv("MONGO_PORT", "27017"),
 	mongoDb:   "senz",
+	username:  "senz",
+	password:  "senz",
 	keyColl:   "keys",
 	senzColl:  "senzes",
 }

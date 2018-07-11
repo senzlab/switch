@@ -34,7 +34,13 @@ var mongoStore = &MongoStore{}
 
 func main() {
 	// db setup
-	session, err := mgo.Dial(mongoConfig.mongoHost)
+	info := &mgo.DialInfo{
+		Addrs:    []string{mongoConfig.mongoHost},
+		Database: mongoConfig.mongoDb,
+		Username: mongoConfig.username,
+		Password: mongoConfig.password,
+	}
+	session, err := mgo.DialWithInfo(info)
 	if err != nil {
 		log.Printf("Error connecting mongo: ", err.Error())
 		return
@@ -316,18 +322,6 @@ func verifySenz(senz *Senz) error {
 	}
 
 	return nil
-}
-
-func statusResponse(w http.ResponseWriter, uid string, to string, status string) {
-	zmsg := SenzMsg{
-		Uid: uid,
-		Msg: statusSenz(status, uid, to),
-	}
-
-	j, _ := json.Marshal(zmsg)
-	w.WriteHeader(http.StatusOK)
-	w.Header().Set("Content-Type", "application/json")
-	io.WriteString(w, string(j))
 }
 
 func responze(w http.ResponseWriter, zmsgs []SenzMsg) {
