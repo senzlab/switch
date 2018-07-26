@@ -209,3 +209,14 @@ func notifyConnectSenz(senz *Senz) string {
 	sz := z + " " + s
 	return sz
 }
+
+func versionSenz(uid string, to string) string {
+	z := "DATA #ios " + versionConfig.ios +
+		" #android " + versionConfig.android +
+		" #uid " + uid +
+		" @" + to +
+		" ^" + config.switchName
+	s, _ := sign(z, getIdRsa())
+	sz := z + " " + s
+	return sz
+}

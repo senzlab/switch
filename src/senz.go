@@ -273,6 +273,20 @@ func handleFetch(w http.ResponseWriter, senz *Senz) {
 		return
 	}
 
+	// check for version
+	if _, ok := senz.Attr["senzes"]; ok {
+		// response blob
+		zmsg := SenzMsg{
+			Uid: qSenz.Attr["uid"],
+			Msg: versionSenz(qSenz.Attr["uid"], senz.Sender),
+		}
+		var zmsgs []SenzMsg
+		zmsgs = append(zmsgs, zmsg)
+		responze(w, zmsgs)
+		return
+	}
+
+	// check for senzes
 	if _, ok := senz.Attr["senzes"]; ok {
 		// get all unfetched senzes
 		qSenzes := mongoStore.dequeueSenzByReceiver(senz.Sender)

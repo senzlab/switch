@@ -40,6 +40,11 @@ type ApnConfig struct {
 	certificate string
 }
 
+type VersionConfig struct {
+	android string
+	ios     string
+}
+
 var config = Config{
 	switchName: getEnv("ZWITCH_NAME", "senzswitch"),
 	switchPort: getEnv("ZWITCH_PORT", "7171"),
@@ -52,9 +57,9 @@ var config = Config{
 var mongoConfig = MongoConfig{
 	mongoHost: getEnv("MONGO_HOST", "dev.localhost"),
 	mongoPort: getEnv("MONGO_PORT", "27017"),
-	mongoDb:   "senz",
-	username:  "senz",
-	password:  "senz",
+	mongoDb:   getEnv("MONGO_DB", "senz"),
+	username:  getEnv("MONGO_USER", "senz"),
+	password:  getEnv("MONGO_PASS", "senz"),
 	keyColl:   "keys",
 	senzColl:  "senzes",
 }
@@ -74,6 +79,11 @@ var apnConfig = ApnConfig{
 	api:         getEnv("APN_API", "https://api.push.apple.com:443"),
 	topic:       getEnv("APN_TOPIC", "com.creative.igift"),
 	certificate: ".certs/apn.p12",
+}
+
+var versionConfig = VersionConfig{
+	android: getEnv("ANDROID_VERSION", ""),
+	ios:     getEnv("IOS_VERSION", ""),
 }
 
 func getEnv(key, fallback string) string {
