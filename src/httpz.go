@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"io/ioutil"
+	"log"
 	"net/http"
 )
 
@@ -13,13 +14,13 @@ func post(senz *Senz) ([]byte, int) {
 	// load client cert
 	cert, err := tls.LoadX509KeyPair(".certs/client.crt", ".certs/client.key")
 	if err != nil {
-		println(err.Error())
+		log.Printf("ERROR: fail load certificate %s", err.Error())
 	}
 
 	// load CA cert
 	caCert, err := ioutil.ReadFile(".certs/ca.crt")
 	if err != nil {
-		println(err.Error())
+		log.Printf("ERROR: fail real certs %s", err.Error())
 	}
 	caCertPool := x509.NewCertPool()
 	caCertPool.AppendCertsFromPEM(caCert)
@@ -49,7 +50,7 @@ func post(senz *Senz) ([]byte, int) {
 		api = chainzConfig.uzerApi
 	}
 
-	println("sending request " + api)
+	log.Printf("sending request %s" + api)
 
 	req, err := http.NewRequest("POST", api, bytes.NewBuffer(j))
 	req.Header.Set("Content-Type", "application/json")
@@ -58,13 +59,13 @@ func post(senz *Senz) ([]byte, int) {
 	client := &http.Client{Transport: transport}
 	resp, err := client.Do(req)
 	if err != nil {
-		println(err.Error())
+		log.Printf("ERROR: fail to send request %s", err.Error())
 		return nil, 400
 	}
 	defer resp.Body.Close()
 
 	b, _ := ioutil.ReadAll(resp.Body)
-	println(string(b))
+	log.Printf("response received, %s", string(b))
 
 	return b, resp.StatusCode
 }

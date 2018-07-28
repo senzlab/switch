@@ -11,6 +11,7 @@ type Config struct {
 	dotKeys    string
 	idRsa      string
 	idRsaPub   string
+	dotLogs    string
 }
 
 type MongoConfig struct {
@@ -52,6 +53,7 @@ var config = Config{
 	dotKeys:    ".keys",
 	idRsa:      ".keys/id_rsa",
 	idRsaPub:   ".keys/id_rsa.pub",
+	dotLogs:    getEnv("DOT_LOGS", ".logs"),
 }
 
 var mongoConfig = MongoConfig{

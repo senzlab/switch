@@ -37,12 +37,12 @@ func notifa(token string, n AndroidNotification) error {
 		Data: n,
 	}
 	j, _ := json.Marshal(notification)
-	log.Printf(string(j[:]))
+	log.Printf("fcm adroid notification, %s", string(j[:]))
 
 	// request
 	req, err := http.NewRequest("POST", fcmConfig.api, bytes.NewBuffer(j))
 	if err != nil {
-		log.Printf("Error init fcm request: ", err.Error)
+		log.Printf("ERROR: fail init fcm android request, %s", err.Error)
 		return err
 	}
 
@@ -55,21 +55,20 @@ func notifa(token string, n AndroidNotification) error {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		println(err.Error())
-		log.Printf("Error send fcm request: ", err.Error())
+		log.Printf("ERROR: fail send fcm android request, %s", err.Error())
 		return err
 	}
 	defer resp.Body.Close()
 	b, _ := ioutil.ReadAll(resp.Body)
 
 	if resp.StatusCode != 200 {
-		log.Printf("fail notifa: ", resp.StatusCode, string(b))
+		log.Printf("ERROR: fail fcm android request, status: %s response: %s", resp.StatusCode, string(b))
 		return errors.New("Invalid response")
 	}
 
 	// TODO parse response and check success=1
 
-	log.Printf("success notifa response ", string(b))
+	log.Printf("success fcm android response, %s", string(b))
 
 	return nil
 }
@@ -82,12 +81,12 @@ func notifi(token string, n AppleNotification) error {
 		Notification:     n,
 	}
 	j, _ := json.Marshal(notification)
-	log.Printf(string(j[:]))
+	log.Printf("fcm ios notification %s", string(j[:]))
 
 	// request
 	req, err := http.NewRequest("POST", fcmConfig.api, bytes.NewBuffer(j))
 	if err != nil {
-		log.Printf("Error init fcm request: ", err.Error)
+		log.Printf("ERROR: fail init fcm ios request %s", err.Error)
 		return err
 	}
 
@@ -101,20 +100,20 @@ func notifi(token string, n AppleNotification) error {
 	resp, err := client.Do(req)
 	if err != nil {
 		println(err.Error())
-		log.Printf("Error send fcm request: ", err.Error())
+		log.Printf("ERROR: fail send fcm ios request, %s", err.Error())
 		return err
 	}
 	defer resp.Body.Close()
 	b, _ := ioutil.ReadAll(resp.Body)
 
 	if resp.StatusCode != 200 {
-		log.Printf("fail notifi: ", resp.StatusCode, string(b))
+		log.Printf("ERROR: fail fcm ios status: %s response: %s", resp.StatusCode, string(b))
 		return errors.New("Invalid response")
 	}
 
 	// TODO parse response and check success=1
 
-	log.Printf("success notifi response ", string(b))
+	log.Printf("success fcm ios response %s", string(b))
 
 	return nil
 }

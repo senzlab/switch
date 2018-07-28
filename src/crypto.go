@@ -9,8 +9,8 @@ import (
 	"encoding/asn1"
 	"encoding/base64"
 	"encoding/pem"
-	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 )
 
@@ -22,7 +22,7 @@ func setUpKeys() {
 		// create it
 		e2 := os.Mkdir(config.dotKeys, 0700)
 		if e2 != nil {
-			fmt.Println("Error : ", e2.Error())
+			log.Printf("ERROR: error init keys dir, %s", e2.Error())
 			os.Exit(1)
 		}
 	}
@@ -42,14 +42,14 @@ func initKeyPair() *rsa.PrivateKey {
 	// generate key pair
 	keyPair, e1 := rsa.GenerateKey(rand.Reader, keySize)
 	if e1 != nil {
-		fmt.Println("Error : ", e1.Error())
+		log.Printf("ERROR: error init keys, %s", e1.Error())
 		os.Exit(1)
 	}
 
 	// validate key
 	e2 := keyPair.Validate()
 	if e2 != nil {
-		fmt.Println("Error : ", e2.Error())
+		log.Printf("ERROR: error init keys, %s", e2.Error())
 		os.Exit(1)
 	}
 
@@ -66,13 +66,13 @@ func saveIdRsa(fileName string, keyPair *rsa.PrivateKey) {
 	// create file
 	f, e1 := os.Create(fileName)
 	if e1 != nil {
-		fmt.Println("Error : ", e1.Error())
+		log.Printf("ERROR: error save idrsa, %s", e1.Error())
 		os.Exit(1)
 	}
 
 	e2 := pem.Encode(f, privateKeyBlock)
 	if e2 != nil {
-		fmt.Println("Error mongo: ", e2.Error())
+		log.Printf("ERROR: error save idrsa, %s", e2.Error())
 		os.Exit(1)
 	}
 }
@@ -81,7 +81,7 @@ func saveIdRsaPub(fileName string, keyPair *rsa.PrivateKey) {
 	// public key stream
 	pubKeyBytes, e1 := x509.MarshalPKIXPublicKey(&keyPair.PublicKey)
 	if e1 != nil {
-		fmt.Println(e1.Error())
+		log.Printf("ERROR: fail save idrsapub %s", e1.Error())
 		os.Exit(1)
 	}
 
@@ -93,13 +93,13 @@ func saveIdRsaPub(fileName string, keyPair *rsa.PrivateKey) {
 	// create file
 	f, e2 := os.Create(fileName)
 	if e2 != nil {
-		fmt.Println("Error : ", e2.Error())
+		log.Printf("ERROR: fail save idrsapub %s", e2.Error())
 		os.Exit(1)
 	}
 
 	e3 := pem.Encode(f, publicKeyBlock)
 	if e3 != nil {
-		fmt.Println(e3.Error())
+		log.Printf("ERROR: fail save idrsapub %s", e3.Error())
 		os.Exit(1)
 	}
 }
@@ -107,19 +107,19 @@ func saveIdRsaPub(fileName string, keyPair *rsa.PrivateKey) {
 func getIdRsa() *rsa.PrivateKey {
 	keyData, e1 := ioutil.ReadFile(config.idRsa)
 	if e1 != nil {
-		fmt.Println(e1.Error())
+		log.Printf("ERROR: fail get idrsa %s", e1.Error())
 		os.Exit(1)
 	}
 
 	keyBlock, _ := pem.Decode(keyData)
 	if keyBlock == nil {
-		fmt.Println("Error : ", "invalid key")
+		log.Printf("ERROR: fail get idrsa")
 		os.Exit(1)
 	}
 
 	privateKey, e2 := x509.ParsePKCS1PrivateKey(keyBlock.Bytes)
 	if e2 != nil {
-		fmt.Println(e2.Error())
+		log.Printf("ERROR: fail get idrsa, %s", e2.Error())
 		os.Exit(1)
 	}
 
@@ -129,19 +129,19 @@ func getIdRsa() *rsa.PrivateKey {
 func getIdRsaPub() *rsa.PublicKey {
 	keyData, e1 := ioutil.ReadFile(config.idRsaPub)
 	if e1 != nil {
-		fmt.Println(e1.Error())
+		log.Printf("ERROR: fail get idrsapub, %s", e1.Error())
 		return nil
 	}
 
 	keyBlock, _ := pem.Decode(keyData)
 	if keyBlock == nil {
-		fmt.Println("Error : ", "invalid key")
+		log.Printf("ERROR: fail get idrsapub, invalid key")
 		return nil
 	}
 
 	publicKey, e2 := x509.ParsePKIXPublicKey(keyBlock.Bytes)
 	if e2 != nil {
-		fmt.Println(e2.Error())
+		log.Printf("ERROR: fail get idrsapub, %s", e2.Error())
 		return nil
 	}
 	switch publicKey := publicKey.(type) {
@@ -155,13 +155,13 @@ func getIdRsaPub() *rsa.PublicKey {
 func getIdRsaPubStr() string {
 	keyData, e1 := ioutil.ReadFile(config.idRsaPub)
 	if e1 != nil {
-		fmt.Println(e1.Error())
+		log.Printf("ERROR: fail get idrsapub str, %s", e1.Error())
 		return ""
 	}
 
 	keyBlock, _ := pem.Decode(keyData)
 	if keyBlock == nil {
-		fmt.Println("Error : ", "invalid key")
+		log.Printf("ERROR: fail get idrsapub str")
 		return ""
 	}
 
@@ -173,14 +173,14 @@ func getSenzieRsa(keyStr string) *rsa.PrivateKey {
 	// key is base64 encoded
 	data, e1 := base64.StdEncoding.DecodeString(keyStr)
 	if e1 != nil {
-		println(e1.Error())
+		log.Printf("ERROR: fail get senziersa , %s", e1.Error())
 		return nil
 	}
 
 	// get rsa private key
 	key, e2 := x509.ParsePKCS8PrivateKey(data)
 	if e2 != nil {
-		println(e2.Error())
+		log.Printf("ERROR: fail get senziersa , %s", e2.Error())
 		return nil
 	}
 	switch key := key.(type) {
@@ -197,16 +197,16 @@ func getSenzieRsaPub(keyStr string) *rsa.PublicKey {
 	// key is base64 encoded
 	data, err := base64.StdEncoding.DecodeString(keyStr)
 	if err != nil {
-		println(err.Error())
+		log.Printf("ERROR: fail deocode key %s", keyStr)
 		return nil
 	}
 
 	// this for ios key
 	var pubKey rsa.PublicKey
 	if rest, err := asn1.Unmarshal(data, &pubKey); err != nil {
-		println("fail to parse ios key")
+		log.Printf("not ios key %s", keyStr)
 	} else if len(rest) != 0 {
-		println("fail to parse ios key, lenght")
+		log.Printf("not ios key %s", keyStr)
 	} else {
 		return &pubKey
 	}
@@ -215,7 +215,7 @@ func getSenzieRsaPub(keyStr string) *rsa.PublicKey {
 	// get rsa public key
 	pub, err := x509.ParsePKIXPublicKey(data)
 	if err != nil {
-		println(err.Error())
+		log.Printf("not android key, %s", keyStr)
 		return nil
 	}
 	switch pub := pub.(type) {
@@ -235,7 +235,7 @@ func sign(payload string, key *rsa.PrivateKey) (string, error) {
 	// sign the hased payload
 	signature, e1 := rsa.SignPKCS1v15(rand.Reader, key, crypto.SHA256, hashed[:])
 	if e1 != nil {
-		println(e1.Error())
+		log.Printf("ERROR: error sign, %s", e1.Error())
 		return "", e1
 	}
 
@@ -247,7 +247,7 @@ func verify(payload string, signature64 string, key *rsa.PublicKey) error {
 	// decode base64 encoded signature
 	signature, e1 := base64.StdEncoding.DecodeString(signature64)
 	if e1 != nil {
-		println(e1.Error())
+		log.Printf("ERROR: error verify signature, %s", e1.Error())
 		return e1
 	}
 

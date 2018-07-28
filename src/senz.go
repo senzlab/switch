@@ -42,7 +42,7 @@ func main() {
 	}
 	session, err := mgo.DialWithInfo(info)
 	if err != nil {
-		log.Printf("Error connecting mongo: ", err.Error())
+		log.Printf("ERROR connecting mongo, %s ", err.Error())
 		return
 	}
 	defer session.Close()
@@ -64,7 +64,7 @@ func initHttpz() {
 	// start server
 	err := http.ListenAndServe(":7171", r)
 	if err != nil {
-		log.Printf("Error init httpz: ", err.Error())
+		log.Printf("ERROR init httpz, ", err.Error())
 		os.Exit(1)
 	}
 }
@@ -74,14 +74,14 @@ func contractz(w http.ResponseWriter, r *http.Request) {
 	b, _ := ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
 
-	log.Printf("received senz: ", string(b))
+	log.Printf("new contract senz, ", string(b))
 
 	// unmarshel json and parse senz
 	var zmsg SenzMsg
 	json.Unmarshal(b, &zmsg)
 	senz, err := parse(zmsg.Msg)
 	if err != nil {
-		log.Printf("Error senz: ", err.Error())
+		log.Printf("ERROR senz, ", err.Error())
 
 		// error response
 		return
@@ -276,8 +276,6 @@ func handleFetch(w http.ResponseWriter, senz *Senz) {
 	// check for version
 	if _, ok := senz.Attr["version"]; ok {
 		// response version
-		log.Printf("fetching version...")
-
 		zmsg := SenzMsg{
 			Uid: senz.Attr["uid"],
 			Msg: versionSenz(senz.Attr["uid"], senz.Sender),
@@ -291,8 +289,6 @@ func handleFetch(w http.ResponseWriter, senz *Senz) {
 	// check for senzes
 	if _, ok := senz.Attr["senzes"]; ok {
 		// get all unfetched senzes
-		log.Printf("fetching senzes...")
-
 		qSenzes := mongoStore.dequeueSenzByReceiver(senz.Sender)
 		var zmsgs []SenzMsg
 		for _, z := range qSenzes {
@@ -306,13 +302,11 @@ func handleFetch(w http.ResponseWriter, senz *Senz) {
 		responze(w, zmsgs)
 	} else {
 		// response version
-		log.Printf("fetching blob...")
-
 		// get senz
 		qSenz := mongoStore.dequeueSenzById(senz.Attr["uid"])
 		if qSenz.Receiver != senz.Sender {
 			// not authorized
-			log.Printf("not authorized to get blob")
+			log.Printf("ERROR: not authorized to get blob")
 			return
 		}
 
@@ -331,14 +325,14 @@ func verifySenz(senz *Senz) error {
 	payload := strings.Replace(senz.Msg, senz.Digsig, "", -1)
 	key := mongoStore.getKey(senz.Sender)
 	if key.Value == "" {
-		log.Printf("cannot verify signarue, no key found")
+		log.Printf("ERROR: cannot verify signarue, no key found")
 		return errors.New("No senzie key found")
 	}
 
 	senzieKey := getSenzieRsaPub(key.Value)
 	err := verify(payload, senz.Digsig, senzieKey)
 	if err != nil {
-		log.Printf("cannot verify signarue, so dorp the conneciton")
+		log.Printf("ERROR: cannot verify signarue, so dorp the conneciton")
 		return errors.New("Cannot verify signature")
 	}
 
