@@ -33,6 +33,9 @@ type SenzMsg struct {
 var mongoStore = &MongoStore{}
 
 func main() {
+	// setup logging
+	initLogz()
+
 	// db setup
 	info := &mgo.DialInfo{
 		Addrs:    []string{mongoConfig.mongoHost},
@@ -74,14 +77,14 @@ func contractz(w http.ResponseWriter, r *http.Request) {
 	b, _ := ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
 
-	log.Printf("new contract senz, ", string(b))
+	log.Printf("new contract senz, %s", string(b))
 
 	// unmarshel json and parse senz
 	var zmsg SenzMsg
 	json.Unmarshal(b, &zmsg)
 	senz, err := parse(zmsg.Msg)
 	if err != nil {
-		log.Printf("ERROR senz, ", err.Error())
+		log.Printf("ERROR senz, %s", err.Error())
 
 		// error response
 		return
