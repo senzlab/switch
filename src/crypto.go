@@ -81,7 +81,7 @@ func saveIdRsaPub(fileName string, keyPair *rsa.PrivateKey) {
 	// public key stream
 	pubKeyBytes, e1 := x509.MarshalPKIXPublicKey(&keyPair.PublicKey)
 	if e1 != nil {
-		log.Printf("ERROR: fail save idrsapub %s", e1.Error())
+		log.Printf("ERROR: fail save idrsapub, %s", e1.Error())
 		os.Exit(1)
 	}
 
@@ -93,13 +93,13 @@ func saveIdRsaPub(fileName string, keyPair *rsa.PrivateKey) {
 	// create file
 	f, e2 := os.Create(fileName)
 	if e2 != nil {
-		log.Printf("ERROR: fail save idrsapub %s", e2.Error())
+		log.Printf("ERROR: fail save idrsapub, %s", e2.Error())
 		os.Exit(1)
 	}
 
 	e3 := pem.Encode(f, publicKeyBlock)
 	if e3 != nil {
-		log.Printf("ERROR: fail save idrsapub %s", e3.Error())
+		log.Printf("ERROR: fail save idrsapub, %s", e3.Error())
 		os.Exit(1)
 	}
 }
@@ -107,7 +107,7 @@ func saveIdRsaPub(fileName string, keyPair *rsa.PrivateKey) {
 func getIdRsa() *rsa.PrivateKey {
 	keyData, e1 := ioutil.ReadFile(config.idRsa)
 	if e1 != nil {
-		log.Printf("ERROR: fail get idrsa %s", e1.Error())
+		log.Printf("ERROR: fail get idrsa, %s", e1.Error())
 		os.Exit(1)
 	}
 
@@ -173,14 +173,14 @@ func getSenzieRsa(keyStr string) *rsa.PrivateKey {
 	// key is base64 encoded
 	data, e1 := base64.StdEncoding.DecodeString(keyStr)
 	if e1 != nil {
-		log.Printf("ERROR: fail get senziersa , %s", e1.Error())
+		log.Printf("ERROR: fail get senziersa, %s", e1.Error())
 		return nil
 	}
 
 	// get rsa private key
 	key, e2 := x509.ParsePKCS8PrivateKey(data)
 	if e2 != nil {
-		log.Printf("ERROR: fail get senziersa , %s", e2.Error())
+		log.Printf("ERROR: fail get senziersa, %s", e2.Error())
 		return nil
 	}
 	switch key := key.(type) {
@@ -197,16 +197,16 @@ func getSenzieRsaPub(keyStr string) *rsa.PublicKey {
 	// key is base64 encoded
 	data, err := base64.StdEncoding.DecodeString(keyStr)
 	if err != nil {
-		log.Printf("ERROR: fail deocode key %s", keyStr)
+		log.Printf("ERROR: fail deocode key, %s", keyStr)
 		return nil
 	}
 
 	// this for ios key
 	var pubKey rsa.PublicKey
 	if rest, err := asn1.Unmarshal(data, &pubKey); err != nil {
-		log.Printf("not ios key %s", keyStr)
+		log.Printf("not ios key, %s", keyStr)
 	} else if len(rest) != 0 {
-		log.Printf("not ios key %s", keyStr)
+		log.Printf("not ios key, %s", keyStr)
 	} else {
 		return &pubKey
 	}

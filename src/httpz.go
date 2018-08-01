@@ -50,7 +50,7 @@ func post(senz *Senz) ([]byte, int) {
 		api = chainzConfig.uzerApi
 	}
 
-	log.Printf("sending request %s" + api)
+	log.Printf("sending request %s", api)
 
 	req, err := http.NewRequest("POST", api, bytes.NewBuffer(j))
 	req.Header.Set("Content-Type", "application/json")
